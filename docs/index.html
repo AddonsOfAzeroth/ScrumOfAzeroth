@@ -1,0 +1,2135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scrum of Azeroth — interactive demo</title>
+<meta name="description" content="Interactive browser demo of the windows of Scrum of Azeroth, a World of Warcraft add-on by DinX. Fictional progress data.">
+<meta name="author" content="DinX">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 14 14%27%3E%3Crect width=%2714%27 height=%2714%27 fill=%27%23101216%27/%3E%3Cpath d=%27M3 8.5L7 4.5l4 4%27 fill=%27none%27 stroke=%27%233fc7eb%27 stroke-width=%272%27/%3E%3Cpath d=%27M3 12L7 8l4 4%27 fill=%27none%27 stroke=%27%23ffd100%27 stroke-width=%272%27/%3E%3C/svg%3E">
+<style>
+:root{
+  --page:#0b0c0f; --bg:#101216; --head:#181b21; --card:#15181e; --card2:#1a1e25; --well:#0c0e12;
+  --edge:#29303d; --gold:#ffd100; --acc:#3fc7eb; --mut:#8a93a0; --txt:#e6eaef; --green:#4fbf5a;
+  --red:#e05050; --xp:#c9a227; --orange:#e8a33d; --violet:#a07ce0;
+  --fs:13px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--txt);font:var(--fs)/1.35 "Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif}
+body{min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+button,select,input{font:inherit;color:inherit}
+.o,.wt,.colh,.ctitle,.trow .tt{text-shadow:1px 1px 0 #000}
+a{color:var(--acc)}
+svg{display:block}
+/* ---------- top bar ---------- */
+#top{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--head);border-bottom:1px solid #000;flex-wrap:wrap;position:relative;z-index:5000}
+#top h1{margin:0;font-size:15px;color:var(--gold);font-weight:600;white-space:nowrap;text-shadow:1px 1px 0 #000}
+#top .by{color:var(--mut);font-size:12px}
+#top .sp{flex:1}
+.logo{width:22px;height:22px;background:#0f1d24;border:1px solid #000;display:grid;place-items:center}
+.seg{display:inline-flex;border:1px solid #000}
+.seg button{border:0;border-right:1px solid #000;background:var(--card);padding:2px 8px;height:22px;cursor:pointer;color:var(--mut)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{color:var(--acc);background:#132029}
+/* ---------- buttons, inputs ---------- */
+.btn{background:var(--card);border:1px solid #000;color:var(--txt);font-size:12px;padding:0 8px;height:22px;line-height:20px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.btn:hover,.btn:focus-visible,.seg button:focus-visible{border-color:var(--acc);outline:none}
+.btn.on{border-color:var(--acc);color:var(--acc)}
+.btn.pri{color:var(--gold)}
+.btn:disabled{opacity:.45;cursor:default;border-color:#000}
+.btn.ib{width:22px;padding:0;justify-content:center}
+.btn.sm{height:18px;line-height:16px;font-size:11px;padding:0 6px}
+select,input[type=text],input[type=number]{background:var(--well);border:1px solid #000;color:var(--txt);height:22px;padding:0 4px;font-size:12px;border-radius:0}
+select:focus,input:focus{outline:none;border-color:var(--acc)}
+input[type=range]{accent-color:var(--acc)}
+input[type=checkbox]{accent-color:var(--acc);width:14px;height:14px;margin:0}
+label{cursor:pointer}
+/* ---------- desk + windows ---------- */
+#desk{position:relative;flex:1;min-height:calc(100vh - 70px)}
+.win{position:absolute;background:var(--bg);border:1px solid #000;display:none;flex-direction:column;min-width:220px;min-height:60px}
+.win.open{display:flex}
+.wh{flex:0 0 auto;height:26px;background:var(--head);display:flex;align-items:center;gap:4px;padding:0 3px 0 8px;border-bottom:1px solid #000;cursor:move;user-select:none;touch-action:none}
+.wt{color:var(--gold);font-weight:600;font-size:13px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wt small{color:var(--mut);font-weight:400;margin-left:6px;font-size:11px}
+.wb{flex:1;min-height:0;overflow:auto;position:relative}
+.win:focus{outline:none}
+.win.top .wh{background:#1c2028}
+.muted{color:var(--mut)}
+.gold{color:var(--gold)}
+.green{color:var(--green)}
+.red{color:var(--red)}
+.acc{color:var(--acc)}
+.xpc{color:var(--xp)}
+.hint{color:var(--mut);font-size:11px}
+/* ---------- tracker ---------- */
+#w-tracker{width:290px;height:440px}
+#w-tracker .wh{height:auto;min-height:26px;flex-wrap:wrap;padding:3px 3px 3px 8px}
+#w-tracker .sline{flex:1;color:var(--gold);font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:move}
+#w-tracker .sub{display:flex;align-items:center;gap:6px;width:100%;padding:2px 0 0}
+#w-tracker .sub select{flex:1;min-width:0;height:20px;font-size:11px}
+#w-tracker .via{font-size:10px;color:var(--acc);white-space:nowrap}
+#w-tracker.folded{height:auto!important}
+#w-tracker.folded .wb,#w-tracker.folded .tfoot{display:none}
+.trk{zoom:var(--sc,1);padding:3px 0 6px}
+.tgrp{display:flex;align-items:center;gap:6px;padding:3px 6px 2px;cursor:pointer;user-select:none}
+.tgrp .gn{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.tgrp .gc{margin-left:auto;font-size:10px;color:var(--mut)}
+.tgrp .gbar{height:2px;background:#22262e;flex:0 0 40px;position:relative}
+.tgrp .gbar i{position:absolute;inset:0 auto 0 0;background:currentColor}
+.trow{display:grid;grid-template-columns:14px 1fr auto;column-gap:5px;padding:2px 6px 3px 8px;cursor:pointer;border-left:2px solid transparent}
+.trow:hover{background:#171b22;border-left-color:var(--acc)}
+.trow.sel{background:#14202a}
+.trow .tt{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow .te{font-size:11px;color:var(--mut);white-space:nowrap;text-align:right}
+.trow .tobj{grid-column:2/4;font-size:11px;color:#c3c9d1;display:flex;align-items:center;gap:4px;min-width:0}
+.trow .tobj span.n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow .tobj.ok{color:var(--mut)}
+.trow .tobj.ok::before{content:"\2713";color:var(--green);font-size:10px}
+.trow .tmeta{grid-column:2/4;display:flex;gap:4px;flex-wrap:wrap;margin-top:1px}
+.qitem{flex:0 0 auto;width:24px;height:24px;border:1px solid #000;outline:1px solid #8a7432;background:#1d1a12;cursor:pointer;display:grid;place-items:center;position:relative;margin:1px 0 1px auto;padding:0}
+.qitem:hover{outline-color:var(--gold)}
+.qitem.cd::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.6);animation:cd 1.2s linear forwards}
+@keyframes cd{from{clip-path:inset(0 0 0 0)}to{clip-path:inset(100% 0 0 0)}}
+.tfoot{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:3px 18px 3px 8px;border-top:1px solid #000;background:var(--head);font-size:11px;color:var(--mut);position:relative}
+.tfoot input{flex:1;min-width:40px}
+.grip{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 0 50%,#4b5462 50% 56%,transparent 56% 66%,#4b5462 66% 72%,transparent 72% 82%,#4b5462 82% 88%,transparent 88%)}
+.grip:hover{background:linear-gradient(135deg,transparent 0 50%,var(--acc) 50% 56%,transparent 56% 66%,var(--acc) 66% 72%,transparent 72% 82%,var(--acc) 82% 88%,transparent 88%)}
+/* ---------- badges, chevrons, pills ---------- */
+.chev{display:inline-block;vertical-align:middle;flex:0 0 auto}
+.badge{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;font-size:10px;padding:0 4px;border:1px solid currentColor;line-height:14px;white-space:nowrap;background:rgba(0,0,0,.25)}
+.badge svg,td svg:not(.chev),.tt svg{display:inline-block;vertical-align:-1px;margin-right:2px}
+.b-block{color:var(--red)} .b-hold{color:var(--orange)} .b-up{color:var(--green)} .b-turn{color:var(--gold)} .b-share{color:var(--acc)} .b-resume{color:var(--green)} .b-group{color:#d08cf0} .b-demo{color:var(--mut)}
+.pill{display:inline-block;font-size:10px;padding:0 5px;line-height:15px;border:1px solid #000;color:#0b0c0f;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.etag{font-size:10px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.link{display:inline-block;vertical-align:-2px;color:var(--acc)}
+/* ---------- board ---------- */
+#w-board{width:1000px;height:640px}
+.btool{display:flex;align-items:center;gap:6px;padding:5px 6px;border-bottom:1px solid #000;background:#13161b;flex-wrap:wrap}
+.btool [role=tablist]{display:inline-flex;gap:0}
+.btool [role=tab]{margin-right:-1px}
+.btool .sp{flex:1}
+.bbody{display:flex;flex:1;min-height:0}
+.bmain{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+.bview{flex:1;min-height:0;overflow:auto;padding:6px}
+.bfoot{flex:0 0 auto;font-size:10px;color:var(--mut);padding:2px 8px;border-top:1px solid #000;display:flex;gap:10px;background:#0e1014}
+.bfoot .sp{flex:1}
+.kan{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(138px,1fr);gap:6px;height:100%;min-height:300px}
+.col{background:var(--well);border:1px solid #000;display:flex;flex-direction:column;min-height:0}
+.colh{display:flex;align-items:center;gap:6px;padding:4px 6px;font-weight:600;font-size:12px;border-bottom:1px solid #000;background:#14171c}
+.colh .cnt{margin-left:auto;color:var(--mut);font-weight:400;font-size:11px}
+.colh i{width:8px;height:8px;display:inline-block;border:1px solid #000}
+.colb{flex:1;overflow:auto;padding:5px;min-height:40px}
+.lane{font-size:10px;color:var(--orange);text-transform:uppercase;letter-spacing:.05em;border-top:1px dashed #3a3220;margin:8px 0 4px;padding-top:4px}
+.card{background:var(--card);border:1px solid #000;border-left:3px solid var(--ec,#555);padding:4px 6px 5px;margin-bottom:5px;cursor:pointer;position:relative}
+.card:hover{border-color:#3a4a58;border-left-color:var(--ec)}
+.card:focus-visible{outline:1px solid var(--acc)}
+.card.sel{border-color:var(--acc);border-left-color:var(--ec)}
+.card.done{opacity:.5}
+.card.prop{border-color:var(--gold);border-left-color:var(--ec)}
+.c1{display:flex;align-items:center;gap:5px;min-width:0}
+.c1 .etag{flex:1;min-width:0}
+.c1 .cxp{font-size:10px;color:var(--xp);white-space:nowrap}
+.cm{border:0;background:none;color:var(--mut);cursor:pointer;padding:0 2px;font-size:13px;line-height:12px;height:14px}
+.cm:hover,.cm:focus-visible{color:var(--acc);outline:none}
+.ctitle{font-weight:600;font-size:12.5px;margin:2px 0 1px;line-height:1.25}
+.ctitle .lv{font-weight:400;font-size:10px;color:var(--mut);margin-left:3px}
+.cest{font-size:11px;color:var(--mut)}
+.badges{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
+.chk{list-style:none;margin:4px 0 0;padding:0;font-size:11px;color:#c6ccd4}
+.chk li{display:flex;gap:5px;align-items:baseline}
+.chk li::before{content:"\25A1";color:var(--mut);font-size:10px;flex:0 0 auto}
+.chk li.ok{color:var(--mut)}
+.chk li.ok::before{content:"\2713";color:var(--green)}
+.chk li .pc{margin-left:auto;color:var(--mut);white-space:nowrap}
+.combo{border:1px dashed #2f6578;padding:4px;margin-bottom:6px;background:#0f161a}
+.combo .ch{font-size:10px;color:var(--acc);display:flex;align-items:center;gap:4px;margin:0 0 4px}
+.combo .card{margin-bottom:4px}
+.combo .card:last-child{margin-bottom:0}
+/* scrum */
+.strip{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:8px;background:var(--well);border:1px solid #000;padding:6px 8px;margin-bottom:6px}
+.strip .goal{display:flex;gap:6px;align-items:center}
+.strip .goal input{flex:1;min-width:0;color:var(--gold)}
+.strip .nums{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 4px;font-size:12px}
+.strip .nums b{font-weight:600}
+.cap{height:8px;background:#1d2128;border:1px solid #000;position:relative;margin:2px 0 4px}
+.cap i{position:absolute;top:0;bottom:0;left:0;background:var(--acc)}
+.cap i.dv{background:var(--green)}
+.cap i.ov{background:var(--red)}
+.fc{font-size:11.5px;color:#cfd5dc}
+.fc .xpc{font-weight:600}
+.burn{background:#0a0b0e;border:1px solid #000}
+.burn text{fill:var(--mut);font-size:9px}
+.sbtn{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center}
+.prop-box{border:1px solid var(--gold);background:#17150c;padding:6px 8px;margin-bottom:6px}
+.prop-box ul{margin:4px 0 6px;padding-left:18px}
+.scr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}
+.pane{background:var(--well);border:1px solid #000;min-height:0}
+.pane > h3{margin:0;font-size:12px;padding:4px 6px;background:#14171c;border-bottom:1px solid #000;display:flex;gap:6px;align-items:center}
+.pane > h3 .cnt{margin-left:auto;color:var(--mut);font-weight:400;font-size:11px}
+.pane .pb{padding:5px}
+.grp{margin-bottom:4px}
+.grph{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--acc);padding:3px 2px;cursor:pointer;user-select:none;border:0;background:none;width:100%;text-align:left}
+.grph .cnt{margin-left:auto;color:var(--mut);font-weight:400}
+.srow{display:grid;grid-template-columns:14px minmax(0,1fr) auto auto;align-items:center;gap:6px;padding:3px 5px;background:var(--card);border:1px solid #000;border-left:3px solid var(--ec,#555);margin-bottom:3px;cursor:pointer;font-size:12px}
+.srow:hover{border-color:#3a4a58;border-left-color:var(--ec)}
+.srow.sel{border-color:var(--acc);border-left-color:var(--ec)}
+.srow .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.srow .nm small{font-weight:400;color:var(--mut);margin-left:4px}
+.srow .es{font-size:11px;color:var(--mut);white-space:nowrap}
+.srow.grey{opacity:.55}
+.srow.done .nm{text-decoration:line-through;color:var(--mut)!important}
+/* list */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{position:sticky;top:-6px;background:#14171c;text-align:left;font-weight:600;color:var(--mut);padding:4px 6px;border-bottom:1px solid #000;white-space:nowrap;z-index:1}
+.tbl th button{background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0;display:inline-flex;gap:3px;align-items:center}
+.tbl th button:hover,.tbl th button:focus-visible{color:var(--acc);outline:none}
+.tbl th[aria-sort=ascending] button,.tbl th[aria-sort=descending] button{color:var(--gold)}
+.tbl td{padding:3px 6px;border-bottom:1px solid #1a1d23;white-space:nowrap}
+.tbl tr.r{cursor:pointer}
+.tbl tr.r:hover td{background:#151a21}
+.tbl tr.r.sel td{background:#13212b}
+.tbl tr.gh td{background:#0d0f13;color:var(--gold);font-weight:600;font-size:11px;padding-top:6px;border-bottom:1px solid #000}
+.tbl .qn{font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.pbar{height:6px;width:70px;background:#1d2128;border:1px solid #000;position:relative;display:inline-block;vertical-align:middle}
+.pbar i{position:absolute;inset:0 auto 0 0;background:var(--acc)}
+.tblw{overflow-x:auto}
+/* detail */
+.detail{flex:0 0 330px;width:330px;border-left:1px solid #000;background:#0e1014;display:flex;flex-direction:column;min-height:0}
+.dh{padding:6px 8px;border-bottom:1px solid #000;background:#13161b}
+.dh .dt{font-size:14px;font-weight:600;margin:2px 0;display:flex;gap:6px;align-items:flex-start}
+.dh .dt span{flex:1}
+.dh .meta{display:flex;flex-wrap:wrap;gap:5px;align-items:center;font-size:11px}
+.dtabs{display:flex;border-bottom:1px solid #000;background:#121419}
+.dtabs [role=tab]{flex:1;border:0;border-right:1px solid #000;background:none;color:var(--mut);height:24px;cursor:pointer;font-size:12px}
+.dtabs [role=tab]:last-child{border-right:0}
+.dtabs [role=tab][aria-selected=true]{color:var(--gold);background:var(--bg);box-shadow:inset 0 -2px 0 var(--gold)}
+.dtabs [role=tab]:focus-visible{outline:1px solid var(--acc)}
+.dbody{flex:1;overflow:auto;padding:6px 8px 10px}
+.sec{margin:8px 0 3px;font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.05em}
+.desc{color:#d5dae0;font-size:12px;margin:2px 0 4px}
+.obj{margin-bottom:6px}
+.obj .on{display:flex;justify-content:space-between;font-size:12px}
+.obj .bar{height:6px;background:#1d2128;border:1px solid #000;position:relative;margin:2px 0}
+.obj .bar i{position:absolute;inset:0 auto 0 0;background:var(--acc)}
+.obj.ok .bar i{background:var(--green)}
+.obj .nt{font-size:10.5px;color:var(--mut)}
+.note{border:1px solid #000;border-left:3px solid var(--orange);background:#16130d;padding:4px 6px;font-size:11.5px;margin:6px 0}
+.note.red{border-left-color:var(--red);background:#1a0f10;color:#e9c9c9}
+.note.grn{border-left-color:var(--green);background:#0f1810;color:#cfe9cf}
+.rew{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start}
+.item{width:38px;height:38px;border:2px solid var(--q,#fff);background:#0b0c0f;display:grid;place-items:center;position:relative;cursor:help;outline:1px solid #000}
+.item .up{position:absolute;right:-4px;top:-5px;background:var(--green);color:#000;font-size:9px;font-weight:700;padding:0 2px;line-height:11px;border:1px solid #000}
+.item .ct{position:absolute;right:1px;bottom:0;font-size:10px;font-weight:700;text-shadow:1px 1px 0 #000}
+.money{display:inline-flex;gap:5px;align-items:center}
+.coin{display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid #000;margin-left:1px;vertical-align:-1px}
+.coin.g{background:#ffd34d}.coin.s{background:#c7ccd4}.coin.c{background:#c27a3e}
+.steps{list-style:none;margin:0;padding:0}
+.steps li{display:flex;gap:6px;align-items:baseline;padding:2px 3px;cursor:pointer;font-size:12px}
+.steps li:hover{background:#171b22}
+.steps li .m{width:12px;text-align:center;flex:0 0 auto}
+.steps li.d{color:var(--mut)} .steps li.d .m{color:var(--green)}
+.steps li.c{color:var(--acc);font-weight:600}
+.steps li.u{color:#77808c}
+.steps li.cur{background:#14202a}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:12px}
+.kv dt{color:var(--mut)} .kv dd{margin:0}
+.acts{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.stat{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:12px;align-items:center}
+.stat .v{text-align:right;font-weight:600}
+.eff{height:10px;background:#1d2128;border:1px solid #000;position:relative;margin:4px 0}
+.eff i{position:absolute;inset:0 auto 0 0}
+.tl{list-style:none;margin:0;padding:0 0 0 14px;border-left:1px solid #2a303a;margin-left:5px}
+.tl li{position:relative;padding:2px 0 5px 6px;font-size:11.5px}
+.tl li::before{content:"";position:absolute;left:-19px;top:6px;width:7px;height:7px;background:var(--dc,#555);border:1px solid #000}
+.tl li .tm{color:var(--mut);font-size:10px;margin-right:5px;font-variant-numeric:tabular-nums}
+.tl li.fight{cursor:context-menu}
+.tl li.fight:hover{background:#171b22}
+.sig{display:inline-flex;gap:1px;align-items:flex-end;height:9px;margin-right:3px;vertical-align:0}
+.sig i{width:2px;background:#39414d}
+.sig i.on{background:var(--acc)}
+.dempty{padding:20px;color:var(--mut);text-align:center}
+/* flow */
+#w-flow{width:780px;height:500px}
+.ftool{display:flex;gap:6px;align-items:center;padding:5px 6px;border-bottom:1px solid #000;background:#13161b;flex-wrap:wrap}
+.ftool .sp{flex:1}
+.legend{display:flex;gap:8px;font-size:10px;color:var(--mut);flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:8px;border:1px solid;vertical-align:-1px;margin-right:3px}
+.fwrap{position:relative;flex:1;min-height:0;overflow:hidden;background:#0a0b0e;background-image:linear-gradient(#11141a 1px,transparent 1px),linear-gradient(90deg,#11141a 1px,transparent 1px);background-size:24px 24px}
+#fsvg{width:100%;height:100%;touch-action:none;cursor:grab;user-select:none}
+#fsvg.drag{cursor:grabbing}
+#fsvg .node{cursor:pointer}
+#fsvg .node:hover rect,#fsvg .node:hover polygon{stroke:var(--acc)}
+#fsvg text{font-family:inherit}
+.mini{position:absolute;right:6px;bottom:6px;width:150px;height:96px;background:rgba(10,11,14,.92);border:1px solid #000;outline:1px solid #2a303a;cursor:pointer}
+.fzoom{position:absolute;left:6px;bottom:6px;font-size:10px;color:var(--mut);background:rgba(10,11,14,.85);padding:1px 5px;border:1px solid #000}
+/* review */
+#w-review{width:580px;height:560px}
+.rv{padding:8px 10px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:6px 0}
+.kpi{background:var(--well);border:1px solid #000;padding:5px 7px}
+.kpi .k{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.kpi .v{font-size:16px;font-weight:600;margin-top:1px}
+.split{display:flex;height:12px;border:1px solid #000;margin:4px 0 2px}
+.split i{display:block;height:100%}
+.box{background:var(--well);border:1px solid #000;padding:6px 8px;margin-top:8px}
+.box h4{margin:0 0 4px;font-size:12px;color:var(--gold)}
+.vel text{fill:var(--mut);font-size:9px}
+/* settings */
+#w-settings{width:400px;height:560px}
+.set{padding:6px 10px 10px}
+.srow2{display:grid;grid-template-columns:1fr 150px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid #191c22;font-size:12px}
+.srow2 .sl small{display:block;color:var(--mut);font-size:10.5px}
+.srow2 select,.srow2 input[type=number]{width:100%}
+.srow2 .ctl{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.srow2 .ctl input[type=range]{flex:1;min-width:0}
+.sethd{color:var(--gold);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 2px}
+/* simulate panel */
+#w-sim{width:290px;height:auto}
+#w-sim .wh{background:repeating-linear-gradient(135deg,#1d1a10 0 8px,#181b21 8px 16px)}
+#w-sim .wt{color:#e2d39a}
+.sim{padding:6px 8px 8px}
+.sim .tag{font-size:10.5px;color:var(--mut);margin-bottom:6px}
+.sim .grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.sim .grid .btn{justify-content:center}
+.sim .tg{display:flex;flex-direction:column;gap:4px;margin-top:8px;font-size:12px}
+.sim .tg label{display:flex;gap:6px;align-items:center}
+.sim .st{font-size:11px;color:var(--mut);margin-top:6px;display:flex;justify-content:space-between;gap:6px}
+.xpbar{height:5px;background:#1d2128;border:1px solid #000;position:relative;margin-top:3px}
+.xpbar i{position:absolute;inset:0 auto 0 0;background:var(--xp)}
+/* overlays */
+#toasts{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);display:flex;flex-direction:column-reverse;gap:4px;z-index:9000;pointer-events:none;width:min(420px,calc(100vw - 32px))}
+.toast{background:#12151a;border:1px solid #000;border-left:3px solid var(--tc,var(--acc));padding:5px 9px;font-size:12.5px;animation:tin .18s ease-out;pointer-events:auto}
+.toast b{color:var(--gold);font-weight:600}
+@keyframes tin{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+#ctx{position:fixed;z-index:9500;background:#111318;border:1px solid #000;outline:1px solid #2a303a;min-width:170px;padding:3px 0;display:none}
+#ctx.open{display:block}
+#ctx .mh{font-size:11px;color:var(--gold);padding:3px 10px 4px;border-bottom:1px solid #000;margin-bottom:2px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ctx button{display:flex;width:100%;align-items:center;gap:6px;background:none;border:0;color:var(--txt);text-align:left;padding:3px 10px;cursor:pointer;font-size:12px}
+#ctx button:hover,#ctx button:focus{background:#1b2630;color:var(--acc);outline:none}
+#ctx button .ar{margin-left:auto;color:var(--mut)}
+#ctx button.cur{color:var(--gold)}
+#ctx hr{border:0;border-top:1px solid #000;margin:2px 0}
+#tip{position:fixed;z-index:9600;background:#0d0f14;border:1px solid #000;outline:1px solid #39404c;padding:6px 8px;font-size:12px;max-width:260px;pointer-events:none;display:none}
+#tip .tn{font-weight:600;font-size:13px}
+#tip .ts{color:var(--mut)}
+#dlgbg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9400;display:none;place-items:center;padding:16px}
+#dlgbg.open{display:grid}
+#dlg{background:var(--bg);border:1px solid #000;width:min(380px,100%)}
+#dlg .f{padding:8px 10px;display:grid;gap:8px}
+#dlg label{display:grid;gap:3px;font-size:12px;color:var(--mut)}
+#dlg input,#dlg textarea,#dlg select{width:100%}
+#dlg textarea{background:var(--well);border:1px solid #000;color:var(--txt);font:inherit;font-size:12px;min-height:54px;padding:4px}
+#dlg .ft{display:flex;justify-content:flex-end;gap:6px;padding:6px 10px;border-top:1px solid #000}
+#dlg .err{color:var(--red);font-size:11px;min-height:14px}
+footer{padding:8px 12px;font-size:11px;color:var(--mut);border-top:1px solid #000;background:#0d0e11;line-height:1.5}
+footer b{color:#b8bfc8;font-weight:600}
+#ptabs{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* ---------- phone ---------- */
+body.phone #desk{min-height:0;padding:0 0 70px}
+body.phone #ptabs{display:flex;position:sticky;top:0;z-index:4000;background:var(--head);border-bottom:1px solid #000;overflow-x:auto;scrollbar-width:none}
+body.phone #ptabs button{flex:1 0 auto;background:none;border:0;border-right:1px solid #000;color:var(--mut);padding:8px 10px;font-size:12px;cursor:pointer}
+body.phone #ptabs button[aria-selected=true]{color:var(--gold);box-shadow:inset 0 -2px 0 var(--gold);background:#1c2028}
+body.phone .win{position:static!important;width:auto!important;height:auto!important;display:none;margin:0;border-left:0;border-right:0;max-width:100vw}
+body.phone .win.ptab-on{display:flex}
+body.phone .wh{cursor:default}
+body.phone #w-tracker .wb{max-height:none}
+body.phone .grip{display:none}
+body.phone .bbody{flex-direction:column}
+body.phone .detail{flex:none;width:auto;border-left:0;border-bottom:1px solid #000;order:-1;max-height:none}
+body.phone .dbody{overflow:visible}
+body.phone .bview{overflow:visible}
+body.phone .kan{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:1fr;height:auto}
+body.phone .colb{overflow:visible}
+body.phone .strip{grid-template-columns:1fr}
+body.phone .scr{grid-template-columns:1fr}
+body.phone .fwrap{height:62vh;flex:none}
+body.phone .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+body.phone #top h1{font-size:13px;white-space:normal}
+body.phone .srow2{grid-template-columns:1fr 130px}
+body.phone .btn{height:28px}
+body.phone .btn.ib{width:28px}
+body.phone select{height:28px}
+body.phone .tbl .qn{max-width:150px}
+@media (prefers-reduced-motion:reduce){.toast{animation:none}.qitem.cd::after{animation:none}}
+</style>
+</head>
+<body>
+<header id="top">
+  <div class="logo" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 8.5L7 4.5l4 4" fill="none" stroke="#3fc7eb" stroke-width="2"/><path d="M3 12L7 8l4 4" fill="none" stroke="#ffd100" stroke-width="2"/></svg></div>
+  <h1 data-t="Scrum of Azeroth — interactive demo">Scrum of Azeroth — interactive demo</h1>
+  <span class="by" data-t="by DinX">by DinX</span>
+  <span class="sp"></span>
+  <button class="btn" id="bLayout" data-act="layout" data-t="Layout">Layout</button>
+  <div class="seg" role="group" aria-label="Language">
+    <button id="lEN" data-act="lang" data-v="en" aria-pressed="true">EN</button>
+    <button id="lNL" data-act="lang" data-v="nl" aria-pressed="false">NL</button>
+  </div>
+  <button class="btn" id="bReset" data-act="reset" data-t="Reset demo">Reset demo</button>
+</header>
+<nav id="ptabs" role="tablist" aria-label="Windows"></nav>
+<main id="desk">
+  <section class="win" id="w-tracker" aria-label="Tracker" tabindex="-1">
+    <div class="wh">
+      <span class="sline" id="tSprint"></span>
+      <button class="btn ib" data-act="toggle" data-w="board" id="tBoard" aria-label="Board"></button>
+      <button class="btn ib" data-act="tfold" id="tFold" aria-label="Fold"></button>
+      <div class="sub"><select id="tSort" aria-label="Sort"></select><span class="via" id="tVia"></span></div>
+    </div>
+    <div class="wb" id="tBody"></div>
+    <div class="tfoot"><span data-t="Scale">Scale</span><input type="range" id="tScale" min="70" max="130" step="5" value="100" aria-label="Scale"><span id="tScaleV">100%</span><div class="grip" id="tGrip" title="Resize"></div></div>
+  </section>
+  <section class="win" id="w-board" role="dialog" aria-labelledby="bTitle" tabindex="-1">
+    <div class="wh"><span class="wt" id="bTitle"></span><button class="btn ib" data-act="close" data-w="board" aria-label="Close"></button></div>
+    <div class="btool" id="bTool"></div>
+    <div class="bbody"><div class="bmain"><div class="bview" id="bView"></div><div class="bfoot" id="bFoot"></div></div><aside class="detail" id="bDetail" hidden></aside></div>
+  </section>
+  <section class="win" id="w-flow" role="dialog" aria-labelledby="fTitle" tabindex="-1">
+    <div class="wh"><span class="wt" id="fTitle"></span><button class="btn ib" data-act="close" data-w="flow" aria-label="Close"></button></div>
+    <div class="ftool" id="fTool"></div>
+    <div class="fwrap" id="fWrap"><svg id="fsvg" aria-label="Flow"><defs><marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#58616e"/></marker><marker id="arrd" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#3fc7eb"/></marker></defs><g id="fvp"></g></svg><svg class="mini" id="fmini" aria-label="Minimap"></svg><div class="fzoom" id="fzoom"></div></div>
+  </section>
+  <section class="win" id="w-review" role="dialog" aria-labelledby="rTitle" tabindex="-1">
+    <div class="wh"><span class="wt" id="rTitle"></span><button class="btn ib" data-act="close" data-w="review" aria-label="Close"></button></div>
+    <div class="wb" id="rBody"></div>
+  </section>
+  <section class="win" id="w-settings" role="dialog" aria-labelledby="sTitle" tabindex="-1">
+    <div class="wh"><span class="wt" id="sTitle"></span><button class="btn ib" data-act="close" data-w="settings" aria-label="Close"></button></div>
+    <div class="wb" id="sBody"></div>
+  </section>
+  <section class="win" id="w-sim" aria-labelledby="mTitle" tabindex="-1">
+    <div class="wh"><span class="wt" id="mTitle"></span></div>
+    <div class="wb" id="mBody"></div>
+  </section>
+</main>
+<footer id="foot"></footer>
+<div id="toasts" role="status" aria-live="polite"></div>
+<div id="ctx" role="menu"></div>
+<div id="tip" role="tooltip"></div>
+<div id="dlgbg"><div id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgT"></div></div>
+<script>
+'use strict';
+// Dutch (Flemish) strings; wording follows the add-on's Locale.lua where it exists
+const NL = {
+  '%d active': '%d actief',
+  '%d blocked skipped': '%d geblokkeerd overgeslagen',
+  '%d of %d steps done': '%d van %d stappen klaar',
+  '%d quests done': '%d quests klaar',
+  '%d%% of the estimate (100%% = as fast as estimated)': '%d%% van de schatting (100%% = zo snel als geschat)',
+  '%d/%d done': '%d/%d klaar',
+  '+ Add to sprint': '+ Aan sprint toevoegen',
+  '+ Ticket': '+ Ticket',
+  '10 minutes later…': '10 minuten later…',
+  'A task that is not a quest, e.g. train spells or farm cloth.': 'Een taak die geen quest is, bv. spells trainen of stof farmen.',
+  'A ticket needs a title.': 'Een ticket heeft een titel nodig.',
+  'Accept': 'Aanvaarden',
+  'Actual time': 'Werkelijke tijd',
+  'Add as GPS stop': 'Als GPS-stop toevoegen',
+  'Added to the sprint: %d items, %s': 'Aan de sprint toegevoegd: %d items, %s',
+  'Added to the sprint: %s': 'Aan de sprint toegevoegd: %s',
+  'All': 'Alles',
+  'Attribution: %s': 'Toewijzing: %s',
+  'Automatic': 'Automatisch',
+  'Available': 'Beschikbaar',
+  'Average DPS': 'Gemiddelde DPS',
+  'Average fight': 'Gemiddeld gevecht',
+  'Back': 'Terug',
+  'Back to backlog': 'Terug naar backlog',
+  'Backlog': 'Backlog',
+  'Blocked': 'Geblokkeerd',
+  'Blocked: %s': 'Geblokkeerd: %s',
+  'Board': 'Bord',
+  'Board mode': 'Bordweergave',
+  'Burndown': 'Burndown',
+  'Cancel': 'Annuleren',
+  'Capacity: %d / %d min': 'Capaciteit: %d / %d min',
+  'CasterKit installed': 'CasterKit geïnstalleerd',
+  'CasterKit loaded: the tracker shows “via CasterKit”.': 'CasterKit geladen: de tracker toont “via CasterKit”.',
+  'CasterKit removed.': 'CasterKit verwijderd.',
+  'Checklist (one step per line)': 'Checklist (één stap per regel)',
+  'Choose one of:': 'Kies er één:',
+  'Click a column header to sort.': 'Klik op een kolomkop om te sorteren.',
+  'Click to tick it off': 'Klik om af te vinken',
+  'Click: details · Shift-click: %s · Right-click: menu': 'Klik: details · Shift-klik: %s · Rechtsklik: menu',
+  'Click: open in the board · Shift-click: add as GPS stop': 'Klik: openen in het bord · Shift-klik: als GPS-stop toevoegen',
+  'Click: open the quest board': 'Klik: questbord openen',
+  'Close': 'Sluiten',
+  'Close (Esc)': 'Sluiten (Esc)',
+  'Close details': 'Details sluiten',
+  'Combat': 'Gevecht',
+  'Combo: %d quests share %s': 'Combo: %d quests delen %s',
+  'Committed %s / Delivered %s': 'Gepland %s / Geleverd %s',
+  'Completed quests': 'Voltooide quests',
+  'Creatures killed': 'Wezens gedood',
+  'Current': 'Huidig',
+  'Current sprint': 'Huidige sprint',
+  'Current zone': 'Huidige zone',
+  'Dashed: ideal': 'Gestippeld: ideaal',
+  'Data': 'Gegevens',
+  'Deaths': 'Gestorven',
+  'Demo quest': 'Demoquest',
+  'Demo reset.': 'Demo opnieuw gestart.',
+  'Demo with example progress data.': 'Demo met voorbeeldgegevens over voortgang.',
+  'Details': 'Details',
+  'Died (corpse run)': 'Gestorven (terug naar je lijk)',
+  'Distance': 'Afstand',
+  'Done': 'Gedaan',
+  'Done: %s': 'Gedaan: %s',
+  'Downtime': 'Stilstand',
+  'Downtime (eating, drinking)': 'Stilstand (eten, drinken)',
+  'Drag to resize': 'Sleep om de grootte te wijzigen',
+  'Drops per kill': 'Drops per kill',
+  'Dungeon: %s (group content)': 'Kerker: %s (groepsinhoud)',
+  'Efficiency': 'Efficiëntie',
+  'Empty': 'Leeg',
+  'Epic': 'Epic',
+  'Epic steps': 'Stappen van de epic',
+  'Epic: %s': 'Epic: %s',
+  'Estimate': 'Schatting',
+  'Estimate (minutes)': 'Schatting (minuten)',
+  'Estimated for this part': 'Geschat voor dit deel',
+  'Estimates use the defaults until you play it.': 'Schattingen gebruiken de standaardwaarden tot je de quest speelt.',
+  'Fight moved here from %s': 'Gevecht hierheen verplaatst van %s',
+  'Fight moved to %s': 'Gevecht verplaatst naar %s',
+  'Fight split between %s and %s': 'Gevecht verdeeld over %s en %s',
+  'Fight: %s': 'Gevecht: %s',
+  'Fight: %s · %ss · %s DPS': 'Gevecht: %s · %ss · %s DPS',
+  'Fights': 'Gevechten',
+  'Filter': 'Filter',
+  'Filter: %s': 'Filter: %s',
+  'Fit': 'Passend',
+  'Flow': 'Flow',
+  'Fold': 'In-/uitklappen',
+  'GPS stop': 'GPS-stop',
+  'GPS stop added (Roads of Azeroth)': 'GPS-stop toegevoegd (Roads of Azeroth)',
+  'General': 'Algemeen',
+  'Gold': 'Goud',
+  'Gold looted': 'Goud buitgemaakt',
+  'Group by': 'Groeperen op',
+  'High': 'Hoog',
+  'Highest': 'Hoogst',
+  'History imported: %s completed quests, %d statistics, played time requested.': 'Geschiedenis geïmporteerd: %s voltooide quests, %d statistieken, speeltijd opgevraagd.',
+  'Imported once per character: completed quests, played time, lifetime statistics. Fight times and drop rates are learned while you play.': 'Eén keer per personage geïmporteerd: voltooide quests, speeltijd, statistieken. Gevechtsduur en dropkansen worden geleerd terwijl je speelt.',
+  'Imported: completed quests, played time, lifetime statistics. Not importable: old fight times and drop rates, which start at the defaults.': 'Geïmporteerd: voltooide quests, speeltijd, statistieken. Niet te importeren: oude gevechtsduur en dropkansen; die starten bij de standaardwaarden.',
+  'In a group': 'In een groep',
+  'In progress': 'Bezig',
+  'In this group': 'In deze groep',
+  'In your log': 'In je questlog',
+  'Initiative': 'Initiatief',
+  'Initiative: %s': 'Initiatief: %s',
+  'Item objective (e.g. 20 Linen Cloth)': 'Itemdoel (bv. 20 Linen Cloth)',
+  'Keys: Esc closes the top window, B toggles the board.': 'Toetsen: Esc sluit het bovenste venster, B toont of verbergt het bord.',
+  'Label / epic': 'Label / epic',
+  'Last finished sprint': 'Laatste afgeronde sprint',
+  'Later with a group': 'Later met een groep',
+  'Layout': 'Indeling',
+  'Learned drop chance': 'Geleerde dropkans',
+  'Learned estimates reset: defaults are used again.': 'Geleerde schattingen gewist: de standaardwaarden gelden weer.',
+  'Level': 'Level',
+  'Level %d': 'Level %d',
+  'Level %d in ~%s at your current pace': 'Level %d over ~%s aan je huidige tempo',
+  'Level %d needed (you are %d)': 'Level %d nodig (jij bent %d)',
+  'Level too high': 'Level te hoog',
+  'Level up! You are now level %d.': 'Level omhoog! Je bent nu level %d.',
+  'Levels': 'Levels',
+  'Lifetime (imported)': 'Sinds het begin (geïmporteerd)',
+  'Locked': 'Vergrendeld',
+  'Loose tasks': 'Losse taken',
+  'Looted %s': '%s buitgemaakt',
+  'Low': 'Laag',
+  'Lowest': 'Laagst',
+  'Medium': 'Gemiddeld',
+  'Menu': 'Menu',
+  'Move to…': 'Verplaatsen naar…',
+  'Moved to %s': 'Verplaatst naar %s',
+  'Moved to %s: %s': 'Naar %s: %s',
+  'Moved to sprint %d': 'Naar sprint %d verplaatst',
+  'Needs Roads of Azeroth': 'Vereist Roads of Azeroth',
+  'Needs a group': 'Groep nodig',
+  'New quest in your log: %s': 'Nieuwe quest in je questlog: %s',
+  'New sprint started.': 'Nieuwe sprint gestart.',
+  'New ticket': 'Nieuw ticket',
+  'Newest first. Right-click a fight: move or split it.': 'Nieuwste eerst. Rechtsklik op een gevecht: verplaatsen of verdelen.',
+  'Next sprint suggestion': 'Voorstel voor de volgende sprint',
+  'No fights recorded yet for this quest.': 'Nog geen gevechten geregistreerd voor deze quest.',
+  'No game art is used: icons are simple drawings.': 'Er wordt geen beeldmateriaal uit het spel gebruikt: de iconen zijn eenvoudige tekeningen.',
+  'No quest needs %s any more.': 'Geen enkele quest heeft nog %s nodig.',
+  'No quests to show.': 'Geen quests om te tonen.',
+  'Not part of the add-on: these buttons stand in for playing the game.': 'Geen deel van de add-on: deze knoppen vervangen het spelen zelf.',
+  'Nothing fits the capacity (or the backlog is empty).': 'Niets past in de capaciteit (of de backlog is leeg).',
+  'Nothing happened yet.': 'Nog niets gebeurd.',
+  'Nothing is ready to turn in.': 'Niets is klaar om in te leveren.',
+  'Objectives': 'Doelen',
+  'On hold': 'In de wacht',
+  'On hold…': 'In de wacht…',
+  'Open the board': 'Bord openen',
+  'Opened in the quest log: %s': 'Geopend in het questlog: %s',
+  'Other': 'Andere',
+  'P': 'P',
+  'Plan sprint': 'Sprint plannen',
+  'Planned / delivered': 'Gepland / geleverd',
+  'Played time': 'Speeltijd',
+  'Priority': 'Prioriteit',
+  'Priority: %s': 'Prioriteit: %s',
+  'Priority…': 'Prioriteit…',
+  'Progress': 'Voortgang',
+  'Progress: %s': 'Voortgang: %s',
+  'Proposed': 'Voorgesteld',
+  'Proposed: %d items, %s': 'Voorgesteld: %d items, %s',
+  'Proposes the top backlog items that fit the capacity. Nothing is added until you accept.': 'Stelt de belangrijkste backlogitems voor die in de capaciteit passen. Er wordt niets toegevoegd tot je aanvaardt.',
+  'Put on hold: %s': 'In de wacht: %s',
+  'Put on hold…': 'In de wacht zetten…',
+  'Quest': 'Quest',
+  'Quest accepted': 'Quest aanvaard',
+  'Quest board': 'Questbord',
+  'Quest giver': 'Questgever',
+  'Quest log': 'Questlog',
+  'Quest names © Blizzard Entertainment; descriptions are summaries written for this demo.': 'Questnamen © Blizzard Entertainment; de beschrijvingen zijn samenvattingen die voor deze demo geschreven zijn.',
+  'Quest reward': 'Questbeloning',
+  'Re-import history': 'Geschiedenis opnieuw importeren',
+  'Ready': 'Klaar',
+  'Ready to resume': 'Klaar om te hervatten',
+  'Ready to turn in': 'Klaar om in te leveren',
+  'Remaining estimated minutes since the sprint started. Dashed: the ideal line.': 'Resterende geschatte minuten sinds de start van de sprint. Gestippeld: de ideale lijn.',
+  'Remaining: %s': 'Resterend: %s',
+  'Reset demo': 'Demo herstarten',
+  'Reset learned estimates': 'Geleerde schattingen wissen',
+  'Restore the default window positions': 'Vensters terug naar hun standaardplaats',
+  'Resume': 'Hervatten',
+  'Resume by hand': 'Zelf hervatten',
+  'Resume when: in a group': 'Hervatten: in een groep',
+  'Resume when: level %d': 'Hervatten: op level %d',
+  'Resumed': 'Hervat',
+  'Review': 'Review',
+  'Rewards': 'Beloningen',
+  'Roads of Azeroth installed': 'Roads of Azeroth geïnstalleerd',
+  'Roads of Azeroth loaded: smart route sorting and GPS stops.': 'Roads of Azeroth geladen: slimme routesortering en GPS-stops.',
+  'Roads of Azeroth removed.': 'Roads of Azeroth verwijderd.',
+  'Save': 'Opslaan',
+  'Scale': 'Schaal',
+  'Scrum of Azeroth is a World of Warcraft add-on by DinX. Not affiliated with or endorsed by Blizzard Entertainment.': 'Scrum of Azeroth is een World of Warcraft-add-on van DinX. Niet verbonden met of goedgekeurd door Blizzard Entertainment.',
+  'Scrum of Azeroth — interactive demo': 'Scrum of Azeroth — interactieve demo',
+  'Settings': 'Instellingen',
+  'Settings of the Scrum of Azeroth add-on. All options: /soa config.': 'Instellingen van de add-on Scrum of Azeroth. Alle opties: /soa config.',
+  'Show': 'Toon',
+  'Show on map': 'Op de kaart tonen',
+  'Simulate': 'Simuleren',
+  'Simulate (demo control)': 'Simuleren (demobediening)',
+  'Smart route: best XP per minute': 'Slimme route: beste XP per minuut',
+  'Smart route: nearest first': 'Slimme route: dichtstbij eerst',
+  'Smart route: story first': 'Slimme route: verhaal eerst',
+  'Solo': 'Solo',
+  'Sort: %s': 'Sorteren: %s',
+  'Split…': 'Verdelen…',
+  'Sprint': 'Sprint',
+  'Sprint %d': 'Sprint %d',
+  'Sprint %d/%d · %d/%d min': 'Sprint %d/%d · %d/%d min',
+  'Sprint goal': 'Sprintdoel',
+  'Sprint goal saved.': 'Sprintdoel opgeslagen.',
+  'Sprint order': 'Sprintvolgorde',
+  'Sprint review': 'Sprintreview',
+  'Start new sprint': 'Nieuwe sprint starten',
+  'Start the demo again from the beginning': 'De demo opnieuw van bij het begin starten',
+  'Status': 'Status',
+  'Style: %s': 'Stijl: %s',
+  'Super-tracked': 'Supergevolgd',
+  'The Defias Messenger dropped %s': 'De Defias Messenger liet %s vallen',
+  'The sprint is empty. Use Plan sprint or add items from the backlog.': 'De sprint is leeg. Gebruik Sprint plannen of voeg items toe uit de backlog.',
+  'The vial is already full.': 'Het flesje is al vol.',
+  'This sprint brings you to level %d (+%d%%)': 'Deze sprint brengt je naar level %d (+%d%%)',
+  'Ticket created': 'Ticket aangemaakt',
+  'Ticket created: %s': 'Ticket aangemaakt: %s',
+  'Time': 'Tijd',
+  'Time split': 'Tijdsverdeling',
+  'Tip: do this together with %s; the same kills count for both.': 'Tip: doe dit samen met %s; dezelfde kills tellen voor beide.',
+  'Tip: the range narrows with every fight; after a few more it is close to your real pace.': 'Tip: de marge wordt kleiner met elk gevecht; na nog een paar zit ze dicht bij je echte tempo.',
+  'Tip: you rest %d%% of the time. Pull the next mob while your mana comes back, or drink less often.': 'Tip: je rust %d%% van de tijd. Trek de volgende mob terwijl je mana terugkomt, of drink minder vaak.',
+  'Title': 'Titel',
+  'To do': 'Te doen',
+  'Toasts on.': 'Meldingen aan.',
+  'Too hard for now': 'Voorlopig te moeilijk',
+  'Track': 'Volgen',
+  'Tracked: %s': 'Gevolgd: %s',
+  'Tracker': 'Tracker',
+  'Turn in': 'Inleveren',
+  'Turn in: %s': 'Inleveren: %s',
+  'Turned in': 'Ingeleverd',
+  'Turned in: %s (+%s XP)': 'Ingeleverd: %s (+%s XP)',
+  'UP': 'UP',
+  'Unblocked': 'Gedeblokkeerd',
+  'Unblocked: %s': 'Gedeblokkeerd: %s',
+  'Upcoming': 'Komt nog',
+  'Upgrade': 'Upgrade',
+  'Upgrade over what you wear now (demo comparison)': 'Beter dan wat je nu draagt (demovergelijking)',
+  'Use %s': '%s gebruiken',
+  'Use %s at the well': '%s gebruiken aan de put',
+  'Used %s': '%s gebruikt',
+  'Velocity': 'Velocity',
+  'Velocity: delivered estimated minutes per hour played (last %d sprints)': 'Velocity: geleverde geschatte minuten per gespeeld uur (laatste %d sprints)',
+  'Waiting for an item': 'Wacht op een item',
+  'Walked %s': '%s gelopen',
+  'Walking': 'Lopen',
+  'What should this sprint deliver?': 'Wat moet deze sprint opleveren?',
+  'Where': 'Waar',
+  'Windows back in their default places.': 'Vensters terug op hun standaardplaats.',
+  'World map opened at %s': 'Wereldkaart geopend op %s',
+  'XP': 'XP',
+  'XP per hour': 'XP per uur',
+  'XP per minute': 'XP per minuut',
+  'XP/min': 'XP/min',
+  'XP/min %d': 'XP/min %d',
+  'You joined a group.': 'Je zit nu in een groep.',
+  'You left the group.': 'Je hebt de groep verlaten.',
+  'You will receive:': 'Je krijgt:',
+  'Your sprints usually deliver %d%% of what was planned.': 'Je sprints leveren meestal %d%% van wat gepland was.',
+  'Zone': 'Zone',
+  'after: %s': 'na: %s',
+  'blocked -2': 'geblokkeerd -2',
+  'by DinX': 'door DinX',
+  'certain': 'zeker',
+  'chain +1': 'keten +1',
+  'chain +2': 'keten +2',
+  'click to zoom in': 'klik om in te zoomen',
+  'custom ticket': 'eigen ticket',
+  'delivered min/h': 'geleverde min/u',
+  'group quest solo -1': 'groepsquest solo -1',
+  'learned': 'geleerd',
+  'learned drop %d%%': 'geleerde drop %d%%',
+  'manual': 'handmatig',
+  'orange -1': 'oranje -1',
+  'plan about %s.': 'plan ongeveer %s.',
+  'planned %s, delivered %s': 'gepland %s, geleverd %s',
+  'planned min': 'geplande min',
+  'played %s': '%s gespeeld',
+  'ready: quick XP': 'klaar: snelle XP',
+  'red -2': 'rood -2',
+  'saves ~%s together': 'samen ~%s sneller',
+  'shared %d ways': 'gedeeld over %d',
+  'shared with %s': 'gedeeld met %s',
+  'split': 'verdeeld',
+  'super-track': 'supervolgen',
+  'upgrade +1': 'upgrade +1',
+  'via CasterKit': 'via CasterKit',
+  'walking %d%% · combat %d%% · idle %d%%': 'lopen %d%% · gevecht %d%% · stil %d%%',
+  'yd': 'yd',
+  '~%d more kills': 'nog ~%d kills',
+  // built dynamically (views, settings, slots, simulate buttons, tabs)
+  'Kanban': 'Kanban', 'Scrum': 'Scrum', 'List': 'Lijst', 'None': 'Geen',
+  'Overview': 'Overzicht', 'Stats': 'Statistieken', 'History': 'Geschiedenis',
+  'Show an On hold column': 'Kolom In de wacht tonen',
+  'Otherwise on-hold cards are listed at the bottom of To do (Kanban) or the backlog (Scrum).': 'Anders staan kaarten in de wacht onderaan Te doen (Kanban) of de backlog (Scrum).',
+  'Group shared quests (combo card)': 'Quests met gedeelde mobs groeperen (combokaart)',
+  'Quests that share mobs become one card.': 'Quests die mobs delen worden één kaart.',
+  'Tracker content': 'Inhoud van de tracker',
+  'All quests in your log': 'Alle quests in je questlog',
+  'Current sprint only': 'Alleen de huidige sprint',
+  'Titles only': 'Alleen titels',
+  'Sort': 'Sorteren',
+  'Priority weighting': 'Prioriteit vooral op',
+  'Balanced': 'Gebalanceerd',
+  'Story first (chains)': 'Verhaal eerst (ketens)',
+  'Sprint capacity': 'Sprintcapaciteit',
+  'Show the sprint review when a sprint ends': 'Sprintreview tonen als een sprint afloopt',
+  'Toasts': 'Meldingen',
+  'Short messages for status changes.': 'Korte berichten bij statuswijzigingen.',
+  'Language': 'Taal',
+  'Legs': 'Benen', 'Chest': 'Borst', 'Staff': 'Staf', 'Feet': 'Voeten', 'One-hand sword': 'Eenhandig zwaard', 'Two-hand mace': 'Tweehandige knots', 'Two-hand axe': 'Tweehandige bijl',
+  'Food': 'Voedsel', 'Recipe': 'Recept', 'Hands': 'Handen', 'Dagger': 'Dolk', 'Wrist': 'Pols', 'Waist': 'Middel', 'Bag': 'Tas', 'Cloak': 'Mantel',
+  'Kill Defias': 'Defias doden', 'Counts for the militia; 40% chance of a bandana': 'Telt voor de militie; 40% kans op een bandana',
+  'Kill Goretusk': 'Goretusk doden', 'Snouts for the stew, livers for the pie': 'Snuiten voor de stoofpot, levers voor de taart',
+  'Loot vial water': 'Water in flesje', 'Same as using the demo vial': 'Hetzelfde als het demoflesje gebruiken',
+  'Level up': 'Level omhoog', 'Unblocks quests that were too high': 'Deblokkeert quests die te hoog waren',
+  'Join group': 'Groep vormen', 'Leave group': 'Groep verlaten', 'On-hold group quests become ready to resume': 'Groepsquests in de wacht worden klaar om te hervatten',
+  'Turn in ready quests': 'Klare quests inleveren', 'Ready → Done, unlocks the next step': 'Klaar → Gedaan, ontgrendelt de volgende stap',
+  'Advance 10 min': '10 min verder', 'Moves the clock and the burndown': 'Verzet de klok en de burndown',
+};
+
+// ======================================================================
+// Scrum of Azeroth: interactive demo by DinX. Plain JS, no build step.
+// Everything is driven by one state object S; render() redraws the windows.
+// ======================================================================
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+let LANG = 'en';
+const MISSING = new Set();
+// T('Text %s', x): English text is the key, like the add-on's Locale.lua
+function T(k, ...a) {
+  let s = k;
+  if (LANG === 'nl') { if (Object.prototype.hasOwnProperty.call(NL, k)) s = NL[k]; else MISSING.add(k); }
+  let i = 0;
+  return s.replace(/%%|%[sd]/g, m => { if (m === '%%') return '%'; const v = a[i++]; return v === undefined ? '' : v; });
+}
+const X = o => o == null ? '' : typeof o === 'string' ? o : (o[LANG] ?? o.en);
+const num = n => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, LANG === 'nl' ? '.' : ',');
+const dec = (n, d = 1) => n.toFixed(d).replace('.', LANG === 'nl' ? ',' : '.');
+function mins(m) {
+  m = Math.max(0, m); if (m < 1) return '<1 min';
+  const r = Math.round(m); if (r < 60) return r + ' min';
+  return Math.floor(r / 60) + (LANG === 'nl' ? 'u' : 'h') + String(r % 60).padStart(2, '0');
+}
+function money(c) {
+  const g = Math.floor(c / 10000), s = Math.floor(c % 10000 / 100), k = c % 100, out = [];
+  if (g) out.push(g + '<i class="coin g"></i>');
+  if (s) out.push(s + '<i class="coin s"></i>');
+  if (k || !out.length) out.push(k + '<i class="coin c"></i>');
+  return '<span class="money">' + out.join(' ') + '</span>';
+}
+let rnd = Math.random;
+function seed(n) { let a = n >>> 0; rnd = () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// ---------- icons (own drawings, no game art) ----------
+const I = {
+  board: '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 1h3v10H1zM5 1h2v7H5zM8 1h3v5H8z" fill="currentColor"/></svg>',
+  fold: '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5h6" stroke="currentColor" stroke-width="1.6"/></svg>',
+  unfold: '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5h6M5 2v6" stroke="currentColor" stroke-width="1.6"/></svg>',
+  close: '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 2l6 6M8 2L2 8" stroke="currentColor" stroke-width="1.6"/></svg>',
+  link: '<svg class="link" width="11" height="11" viewBox="0 0 12 12" aria-label="shared"><path d="M5 7l2-2M4.2 5.6L3 6.8a1.8 1.8 0 002.5 2.5L6.7 8M7.8 6.4L9 5.2a1.8 1.8 0 00-2.5-2.5L5.3 3.9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+  lock: '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M2.5 4.5h5v4h-5zM3.5 4.5V3a1.5 1.5 0 013 0v1.5" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>',
+  caret: o => `<svg width="8" height="8" viewBox="0 0 8 8" style="transform:rotate(${o ? 90 : 0}deg)"><path d="M2 1l4 3-4 3z" fill="currentColor"/></svg>`,
+};
+// item glyphs drawn as simple shapes
+const GLYPH = {
+  cloak: '<path d="M8 4h8l3 14-7 3-7-3z" fill="#5d6f8a"/><path d="M10 4h4v3h-4z" fill="#c9a227"/>',
+  boots: '<path d="M8 4h5v10h6v5H7z" fill="#7a5a3c"/><path d="M7 17h12v2H7z" fill="#3b2a1c"/>',
+  legs: '<path d="M7 4h10l-1 16h-3l-1-10-1 10H8z" fill="#6b5f4a"/>',
+  chest: '<path d="M6 6l4-2h4l4 2-1 13H7z" fill="#5f7a54"/><path d="M11 4h2v15h-2z" fill="#2c3a27"/>',
+  staff: '<path d="M16 3l2 2L8 21l-2-2z" fill="#8a6a3d"/><circle cx="17" cy="4" r="2.6" fill="#3fc7eb"/>',
+  sword: '<path d="M17 3h4v4L10 18l-3-3z" fill="#c8ced6"/><path d="M5 14l5 5-2 2-1-1-2 2-2-2 2-2-1-1z" fill="#8a6a3d"/>',
+  mace: '<path d="M11 10h2v11h-2z" fill="#8a6a3d"/><rect x="7" y="3" width="10" height="8" fill="#9aa3ad"/>',
+  bracer: '<path d="M7 7h10v10H7z" fill="#6b5f4a"/><path d="M7 10h10M7 14h10" stroke="#3b2a1c" stroke-width="1.4"/>',
+  belt: '<path d="M3 10h18v5H3z" fill="#6b4a2c"/><path d="M10 9h4v7h-4z" fill="#c9a227"/>',
+  gloves: '<path d="M7 9h10v10H7zM7 5h2v5H7zM10 4h2v5h-2zM13 4h2v5h-2z" fill="#a07a50"/>',
+  food: '<ellipse cx="12" cy="15" rx="8" ry="4" fill="#8a5a2c"/><ellipse cx="12" cy="13" rx="6" ry="2.6" fill="#c9843e"/>',
+  scroll: '<path d="M6 5h12v14H6z" fill="#d8c79a"/><path d="M8 8h8M8 11h8M8 14h5" stroke="#7a6a45" stroke-width="1.2"/>',
+  knife: '<path d="M5 18L17 6l2 2L8 19z" fill="#c8ced6"/><path d="M4 19l3-3 2 2-3 3z" fill="#6b4a2c"/>',
+  bag: '<path d="M7 8h10l2 12H5z" fill="#8a6a3d"/><path d="M9 8a3 3 0 016 0" fill="none" stroke="#5a4426" stroke-width="1.5"/>',
+  blanket: '<path d="M5 6h14v12H5z" fill="#7d4a5a"/><path d="M5 10h14M5 14h14" stroke="#c9a227" stroke-width="1"/>',
+  vial: '<path d="M10 3h4v5l4 9a2 2 0 01-2 3H8a2 2 0 01-2-3l4-9z" fill="#28343f" stroke="#9fb4c4" stroke-width="1"/><path d="M8 15h8l1 2.5a1 1 0 01-1 1.5H8a1 1 0 01-1-1.5z" fill="#3fc7eb"/>',
+};
+const glyph = (g, s = 24) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true">${GLYPH[g] || GLYPH.bag}</svg>`;
+const QUAL = { poor: '#9d9d9d', common: '#ffffff', uncommon: '#1eff00', rare: '#0070dd', epic: '#a335ee' };
+
+// ---------- static data: real classic Westfall quests, summaries written for this demo ----------
+const EPICS = {
+  defias: { name: 'The Defias Brotherhood', color: '#e0703c' },
+  militia: { name: "The People's Militia", color: '#5b8fd9' },
+  kitchen: { name: "Salma's Kitchen", color: '#d4b13c' },
+  gnolls: { name: { en: 'Gnolls', nl: 'Gnolls' }, color: '#a07ce0' },
+  loose: { name: { en: 'Loose tasks', nl: 'Losse taken' }, color: '#7d8794' },
+  chores: { name: { en: 'Chores', nl: 'Klusjes' }, color: '#45b5a6' },
+};
+const EPIC_ORDER = ['defias', 'militia', 'kitchen', 'gnolls', 'loose', 'chores'];
+const INIT = { name: { en: 'Westfall', nl: 'Westfall' } };
+// flow graphs per epic: main line, side quests (learned = dashed), dungeon link
+const FLOWS = {
+  defias: { main: ['def1', 'def2', 'def3', 'def4', 'def5', 'def6', 'def7'], side: [{ id: 'mil1', from: 'def1' }, { id: 'band', from: 'mil1', learned: true }, { id: 'deed', from: 'def2', learned: true }], dungeon: { from: 'def7', name: 'The Deadmines', sub: { en: 'Dungeon · level 18–23', nl: 'Kerker · level 18–23' }, side: 'brother' } },
+  militia: { main: ['mil1', 'mil2', 'mil3'], side: [{ id: 'band', from: 'mil1', learned: true }, { id: 'linen', from: 'band', learned: true }] },
+  kitchen: { main: ['stew'], side: [{ id: 'pie', from: 'stew', learned: true }] },
+  gnolls: { main: ['patrol', 'blanchy'], side: [] },
+  loose: { free: ['deed', 'killing', 'coast', 'brother', 'vial'] },
+  chores: { free: ['junk', 'linen'] },
+};
+const Z = { wf: 'Westfall', sw: 'Stormwind City', rr: 'Redridge Mountains', dm: 'The Deadmines' };
+const IT = (n, g, q, slot, o = {}) => Object.assign({ n, g, q, slot }, o);
+
+function quests() {
+  const q = (id, o) => Object.assign({
+    id, kind: 'quest', status: 'todo', inLog: true, sprint: false, hold: null, block: null, manual: null,
+    objs: [], shared: [], hist: [], fights: [], spread: 0.3, upcoming: false, after: null, money: 0,
+    choose: [], get: [], group: false, kills: 0, drops: 0, spent: 0, down: 0, order: 99, x: 0, y: 0,
+  }, o);
+  const ob = (en, nl, have, need, o = {}) => Object.assign({ t: { en, nl }, have, need }, o);
+  const G = { gryan: 'Gryan Stoutmantle · Sentinel Hill', galiaan: 'Scout Galiaan · Sentinel Hill', salma: "Salma Saldean · Saldean's Farm", danuvin: 'Captain Danuvin · Sentinel Hill' };
+  return [
+    q('def1', { t: 'The Defias Brotherhood', epic: 'defias', lvl: 18, zone: Z.wf, status: 'done', doneSprint: 6, xp: 340, est: 3, giver: G.gryan, turnin: 'Wiley the Black · Lakeshire', x: 0, y: 0,
+      d: { en: 'Gryan Stoutmantle suspects the Defias have friends outside Westfall. He sends you to his contact, Wiley the Black, at the inn in Lakeshire.', nl: 'Gryan Stoutmantle vermoedt dat de Defias vrienden hebben buiten Westfall. Hij stuurt je naar zijn contact, Wiley the Black, in de herberg van Lakeshire.' },
+      objs: [ob('Speak with Wiley the Black', 'Spreek met Wiley the Black', 1, 1)] }),
+    q('def2', { t: 'The Defias Brotherhood (2)', epic: 'defias', lvl: 18, zone: Z.rr, status: 'done', doneSprint: 6, xp: 675, est: 4, giver: 'Wiley the Black · Lakeshire', turnin: G.gryan, x: 0, y: 0,
+      d: { en: 'Wiley the Black knows more than he lets on about the Defias. Get his information back to Gryan at Sentinel Hill.', nl: 'Wiley the Black weet meer over de Defias dan hij laat merken. Breng zijn informatie terug naar Gryan op Sentinel Hill.' },
+      objs: [ob("Wiley's Note", "Wiley's Note", 1, 1)] }),
+    q('def3', { t: 'The Defias Brotherhood (3)', epic: 'defias', lvl: 18, zone: Z.sw, status: 'done', sprint: true, doneSprint: 7, order: 1, xp: 675, est: 4, giver: G.gryan, turnin: 'Master Mathias Shaw · SI:7, Stormwind', x: 0, y: 0,
+      d: { en: "Gryan wants Stormwind's spymaster to see Wiley's note. Deliver it to Mathias Shaw at the SI:7 building in Old Town.", nl: 'Gryan wil dat de spionnenmeester van Stormwind de notitie van Wiley ziet. Bezorg ze bij Mathias Shaw in het SI:7-gebouw in Old Town.' },
+      objs: [ob("Deliver Wiley's Note", "Wiley's Note bezorgen", 1, 1)] }),
+    q('def4', { t: 'The Defias Brotherhood (4)', epic: 'defias', lvl: 18, zone: Z.wf, status: 'ready', sprint: true, order: 2, xp: 675, est: 3, giver: 'Master Mathias Shaw · SI:7, Stormwind', turnin: G.gryan, x: 30, y: -20,
+      d: { en: "Shaw has written a report for Gryan. Carry it back to Sentinel Hill so the militia can plan its next move.", nl: 'Shaw heeft een verslag voor Gryan geschreven. Breng het terug naar Sentinel Hill zodat de militie haar volgende stap kan plannen.' },
+      objs: [ob("Shaw's Report", "Shaw's Report", 1, 1)] }),
+    q('def5', { t: 'The Defias Brotherhood (5)', epic: 'defias', lvl: 18, zone: Z.wf, inLog: false, upcoming: true, after: 'def4', xp: 1350, est: 9, giver: G.gryan, turnin: G.gryan, x: -320, y: 280,
+      d: { en: 'A Defias Messenger travels the roads of Westfall. Intercept him and bring the message he carries to Gryan.', nl: 'Een Defias Messenger reist over de wegen van Westfall. Onderschep hem en breng de boodschap die hij draagt naar Gryan.' },
+      objs: [ob('A Mysterious Message', 'A Mysterious Message', 0, 1, { mob: 'messenger', drop: 1 })] }),
+    q('def6', { t: 'The Defias Brotherhood (6)', epic: 'defias', lvl: 18, zone: Z.wf, inLog: false, upcoming: true, after: 'def5', group: true, xp: 1700, est: 12, giver: 'Defias Traitor · Sentinel Hill', turnin: G.gryan, x: -500, y: 620,
+      d: { en: 'A Defias Traitor offers to show where the Brotherhood hides. Escort him to Moonbrook, learn where their leader is, and report back. Easier with two players.', nl: 'Een Defias Traitor wil tonen waar de Brotherhood zich verschuilt. Begeleid hem naar Moonbrook, ontdek waar hun leider zit en meld het terug. Makkelijker met twee spelers.' },
+      objs: [ob('Escort the Defias Traitor', 'Begeleid de Defias Traitor', 0, 1)] }),
+    q('def7', { t: 'The Defias Brotherhood (7)', epic: 'defias', lvl: 22, zone: Z.dm, inLog: false, upcoming: true, after: 'def6', group: true, xp: 2600, est: 45, giver: G.gryan, turnin: G.gryan, x: -480, y: 700,
+      d: { en: "The trail ends in the Deadmines below Moonbrook. Defeat Edwin VanCleef with a group and bring proof to Gryan.", nl: 'Het spoor eindigt in de Deadmines onder Moonbrook. Versla Edwin VanCleef met een groep en breng het bewijs naar Gryan.' },
+      objs: [ob("Edwin VanCleef's head", "Edwin VanCleef's head", 0, 1)],
+      choose: [IT('Chausses of Westfall', 'legs', 'uncommon', 'Legs'), IT('Tunic of Westfall', 'chest', 'uncommon', 'Chest', { up: 1 }), IT('Staff of Westfall', 'staff', 'uncommon', 'Staff')] }),
+    q('band', { t: 'Red Leather Bandanas', epic: 'militia', lvl: 15, zone: Z.wf, status: 'prog', sprint: true, order: 3, xp: 1050, money: 0, est: 10, giver: G.galiaan, turnin: G.galiaan, shared: ['mil1', 'linen'], x: 180, y: -260, spent: 7, down: 18,
+      d: { en: 'Scout Galiaan wants proof that the Defias are organised. Take the red bandanas their members wear all over Westfall.', nl: 'Scout Galiaan wil bewijs dat de Defias georganiseerd zijn. Verzamel de rode bandana’s die hun leden overal in Westfall dragen.' },
+      objs: [ob('Red Leather Bandana', 'Red Leather Bandana', 6, 15, { mob: 'defias', drop: 0.39 })], kills: 16, drops: 6,
+      choose: [IT('Cloak of the People\'s Militia', 'cloak', 'uncommon', 'Cloak'), IT('Greaves of the People\'s Militia', 'boots', 'uncommon', 'Feet'), IT('Leggings of the People\'s Militia', 'legs', 'uncommon', 'Legs', { up: 1 })] }),
+    q('mil1', { t: "The People's Militia", epic: 'militia', lvl: 12, zone: Z.wf, status: 'prog', sprint: true, order: 4, manual: 3, xp: 630, est: 9, giver: G.gryan, turnin: G.gryan, shared: ['band', 'linen'], x: 260, y: -380, spent: 6, down: 12,
+      d: { en: 'Gryan is raising a militia to push the Defias back. Thin out the Trappers and Smugglers around Jangolode Mine, Molsen Farm and the Furlbrow pumpkin farm.', nl: 'Gryan brengt een militie op de been om de Defias terug te dringen. Dun de Trappers en Smugglers uit rond Jangolode Mine, Molsen Farm en de pompoenboerderij van Furlbrow.' },
+      objs: [ob('Defias Trapper slain', 'Defias Trapper gedood', 7, 15, { mob: 'defias', kill: 'Defias Trapper' }), ob('Defias Smuggler slain', 'Defias Smuggler gedood', 4, 15, { mob: 'defias', kill: 'Defias Smuggler' })], kills: 11 }),
+    q('mil2', { t: "The People's Militia (2)", epic: 'militia', lvl: 14, zone: Z.wf, inLog: false, upcoming: true, after: 'mil1', xp: 1050, est: 14, giver: G.gryan, turnin: G.gryan, x: -150, y: 520,
+      d: { en: 'The next sweep moves south: Pillagers and Looters at the Gold Coast Quarry, Moonbrook and Alexston Farmstead.', nl: 'De volgende ronde gaat zuidwaarts: Pillagers en Looters bij de Gold Coast Quarry, Moonbrook en Alexston Farmstead.' },
+      objs: [ob('Defias Pillager slain', 'Defias Pillager gedood', 0, 15), ob('Defias Looter slain', 'Defias Looter gedood', 0, 15)] }),
+    q('mil3', { t: "The People's Militia (3)", epic: 'militia', lvl: 17, zone: Z.wf, inLog: false, upcoming: true, after: 'mil2', xp: 1350, est: 16, giver: G.gryan, turnin: G.gryan, x: 420, y: 560,
+      d: { en: 'Finish the campaign in the Dagger Hills and you are counted as a member of the militia.', nl: 'Rond de campagne af in de Dagger Hills en je hoort officieel bij de militie.' },
+      objs: [ob('Defias Highwayman slain', 'Defias Highwayman gedood', 0, 15), ob('Defias Pathstalker slain', 'Defias Pathstalker gedood', 0, 5), ob('Defias Knuckleduster slain', 'Defias Knuckleduster gedood', 0, 5)],
+      choose: [IT('Edge of the People\'s Militia', 'sword', 'uncommon', 'One-hand sword'), IT('Fist of the People\'s Militia', 'mace', 'uncommon', 'Two-hand mace'), IT('Spark of the People\'s Militia', 'staff', 'uncommon', 'Staff', { up: 1 })] }),
+    q('stew', { t: 'Westfall Stew', epic: 'kitchen', lvl: 13, zone: Z.wf, status: 'prog', sprint: true, order: 5, xp: 720, est: 6, giver: G.salma, turnin: G.salma, shared: ['pie'], x: 420, y: 140, spent: 5, down: 22,
+      d: { en: 'Salma Saldean is cooking for the farmers who stayed. She needs four ingredients from around the farm and the coast.', nl: 'Salma Saldean kookt voor de boeren die gebleven zijn. Ze heeft vier ingrediënten nodig van rond de boerderij en de kust.' },
+      objs: [ob('Stringy Vulture Meat', 'Stringy Vulture Meat', 3, 3), ob('Goretusk Snout', 'Goretusk Snout', 0, 3, { mob: 'goretusk', drop: 0.55 }), ob('Murloc Eye', 'Murloc Eye', 1, 3), ob('Okra', 'Okra', 3, 3)], kills: 3,
+      get: [IT('Westfall Stew', 'food', 'common', 'Food', { ct: 3 }), IT('Recipe: Westfall Stew', 'scroll', 'common', 'Recipe'), IT("Salma's Oven Mitts", 'gloves', 'common', 'Hands'), IT('Sharp Kitchen Knife', 'knife', 'common', 'Dagger')] }),
+    q('pie', { t: 'Goretusk Liver Pie', epic: 'kitchen', lvl: 12, zone: Z.wf, sprint: true, order: 6, xp: 540, est: 7, giver: G.salma, turnin: G.salma, shared: ['stew'], x: 380, y: 220,
+      d: { en: 'Salma also wants livers for her pie. Goretusks roam the fields around the farm.', nl: 'Salma wil ook levers voor haar taart. Goretusks lopen rond op de velden bij de boerderij.' },
+      objs: [ob('Goretusk Liver', 'Goretusk Liver', 0, 8, { mob: 'goretusk', drop: 0.5 })],
+      get: [IT('Goretusk Liver Pie', 'food', 'common', 'Food', { ct: 3 }), IT('Recipe: Goretusk Liver Pie', 'scroll', 'common', 'Recipe')] }),
+    q('patrol', { t: 'Patrolling Westfall', epic: 'gnolls', lvl: 14, zone: Z.wf, status: 'done', sprint: true, doneSprint: 7, order: 0, xp: 975, est: 6, giver: G.danuvin, turnin: G.danuvin, x: 0, y: 0,
+      d: { en: 'Captain Danuvin pays for proof of gnoll kills. Bring him gnoll paws.', nl: 'Captain Danuvin betaalt voor bewijs van gedode gnolls. Breng hem gnollpoten.' },
+      objs: [ob('Gnoll Paw', 'Gnoll Paw', 8, 8)], choose: [IT("Bracers of the People's Militia", 'bracer', 'uncommon', 'Wrist'), IT("Belt of the People's Militia", 'belt', 'uncommon', 'Waist')] }),
+    q('blanchy', { t: 'Poor Old Blanchy', epic: 'gnolls', lvl: 14, zone: Z.wf, xp: 1050, est: 11, giver: 'Verna Furlbrow · Westfall', turnin: 'Verna Furlbrow · Westfall', x: 150, y: -900,
+      d: { en: "Verna Furlbrow's old horse needs feed. Gather oats from the sacks in the fields; gnolls sometimes carry them too.", nl: 'Het oude paard van Verna Furlbrow heeft voer nodig. Verzamel haver uit de zakken op de velden; ook gnolls hebben er soms bij.' },
+      objs: [ob('Handful of Oats', 'Handful of Oats', 0, 8)], get: [IT("Old Blanchy's Blanket", 'blanket', 'common', 'Cloak'), IT("Old Blanchy's Feed Pouch", 'bag', 'common', 'Bag')] }),
+    q('deed', { t: "Furlbrow's Deed", epic: 'loose', lvl: 9, zone: Z.wf, status: 'done', sprint: true, doneSprint: 7, order: 0, xp: 110, est: 3, giver: { en: 'Starts from an item', nl: 'Start vanaf een item' }, turnin: 'Farmer Furlbrow · Westfall', x: 0, y: 0,
+      d: { en: 'The deed to the Furlbrow farm turned up in Defias hands. Return it to Farmer Furlbrow.', nl: 'De eigendomsakte van de boerderij van Furlbrow dook op bij de Defias. Breng ze terug naar Farmer Furlbrow.' },
+      objs: [ob("Return Furlbrow's Deed", "Furlbrow's Deed terugbrengen", 1, 1)] }),
+    q('killing', { t: 'The Killing Fields', epic: 'loose', lvl: 15, zone: Z.wf, inLog: false, xp: 1050, est: 12, giver: "Farmer Saldean · Saldean's Farm", turnin: "Farmer Saldean · Saldean's Farm", x: 520, y: 260,
+      d: { en: "Harvest Watchers, old Defias-built machines, are wrecking Farmer Saldean's fields. Break twenty of them.", nl: 'Harvest Watchers, oude machines van de Defias, vernielen de velden van Farmer Saldean. Sloop er twintig.' },
+      objs: [ob('Harvest Watcher destroyed', 'Harvest Watcher vernield', 0, 20)], choose: [IT("Harvester's Pants", 'legs', 'uncommon', 'Legs', { up: 1 }), IT("Harvester's Robe", 'chest', 'uncommon', 'Chest')] }),
+    q('coast', { t: "The Coast Isn't Clear", epic: 'loose', lvl: 17, zone: Z.wf, money: 700, xp: 1050, est: 15, giver: 'Captain Grayson · Westfall Lighthouse', turnin: 'Captain Grayson · Westfall Lighthouse', group: true, x: -820, y: 760,
+      hold: { why: 'group', resume: 'group', ready: false },
+      d: { en: 'Murlocs are crowding the coast near the lighthouse. Captain Grayson wants their numbers cut, but they come in packs.', nl: 'Murlocs overspoelen de kust bij de vuurtoren. Captain Grayson wil hun aantal terugdringen, maar ze komen in groepen.' },
+      objs: [ob('Murloc Tidehunter slain', 'Murloc Tidehunter gedood', 0, 7), ob('Murloc Oracle slain', 'Murloc Oracle gedood', 0, 7)] }),
+    q('brother', { t: 'Oh Brother...', epic: 'loose', lvl: 20, zone: Z.dm, xp: 1550, est: 25, giver: 'Wilder Thistlenettle · Stormwind', turnin: 'Wilder Thistlenettle · Stormwind', block: { lvl: 18 }, x: -500, y: 690,
+      d: { en: "Wilder Thistlenettle's brother went into the mines and never came back. Find the foreman near the Deadmines and recover his badge.", nl: 'De broer van Wilder Thistlenettle ging de mijnen in en kwam nooit terug. Zoek de voorman bij de Deadmines en haal zijn badge terug.' },
+      objs: [ob("Thistlenettle's Badge", "Thistlenettle's Badge", 0, 1)], choose: [IT("Miner's Revenge", 'mace', 'uncommon', 'Two-hand axe', { up: 1 })] }),
+    q('vial', { t: { en: 'Well Water Samples', nl: 'Waterstalen uit de put' }, demo: true, epic: 'loose', lvl: 16, zone: Z.wf, sprint: true, order: 7, xp: 700, est: 4, giver: { en: 'Demo quest giver · Sentinel Hill', nl: 'Demo-questgever · Sentinel Hill' }, turnin: { en: 'Demo quest giver · Sentinel Hill', nl: 'Demo-questgever · Sentinel Hill' }, x: -160, y: 240,
+      item: { n: { en: 'Empty Vial (demo item)', nl: 'Leeg flesje (demo-item)' }, g: 'vial' },
+      d: { en: 'Made-up demo quest to show a usable quest item: fill the vial at the old well near Moonbrook three times.', nl: 'Verzonnen demoquest om een bruikbaar questitem te tonen: vul het flesje drie keer aan de oude put bij Moonbrook.' },
+      objs: [ob('Water sample', 'Waterstaal', 0, 3, { use: 1 })] }),
+    q('junk', { kind: 'custom', t: { en: 'Sell junk and repair', nl: 'Rommel verkopen en repareren' }, epic: 'chores', lvl: 17, zone: Z.wf, xp: 0, est: 3, manual: 2, giver: { en: 'Custom ticket', nl: 'Eigen ticket' }, turnin: 'Quartermaster Lewis · Sentinel Hill', x: 40, y: 30,
+      d: { en: 'Bags are nearly full and the gear is getting worn. Stop at the vendor on Sentinel Hill.', nl: 'De tassen zitten bijna vol en de uitrusting slijt. Even langs de verkoper op Sentinel Hill.' },
+      objs: [ob('Sell grey items', 'Grijze items verkopen', 0, 1, { step: 1 }), ob('Repair all gear', 'Alles repareren', 0, 1, { step: 1 })] }),
+    q('linen', { kind: 'custom', t: { en: 'Farm 20 Linen Cloth', nl: '20 Linen Cloth farmen' }, epic: 'chores', lvl: 17, zone: Z.wf, status: 'prog', xp: 0, est: 5, manual: 2, giver: { en: 'Custom ticket · item goal', nl: 'Eigen ticket · itemdoel' }, turnin: { en: 'none', nl: 'geen' }, shared: ['band', 'mil1'], x: 260, y: -380,
+      d: { en: 'Cloth for First Aid bandages. Humanoids such as the Defias drop it while you quest.', nl: 'Stof voor verbanden (First Aid). Humanoïden zoals de Defias laten het vallen terwijl je questt.' },
+      objs: [ob('Linen Cloth', 'Linen Cloth', 11, 20, { mob: 'defias', drop: 0.3, item: 1 })], kills: 27, drops: 11 }),
+  ];
+}
+
+// ---------- state ----------
+let S;
+const STAT = ['todo', 'prog', 'ready', 'done'];
+const STAT_LABEL = { todo: 'To do', prog: 'In progress', ready: 'Ready', done: 'Done' };
+const STAT_COLOR = { todo: '#8a93a0', prog: '#3fc7eb', ready: '#4fbf5a', done: '#5d6672', hold: '#e8a33d' };
+const PRIO = ['Lowest', 'Low', 'Medium', 'High', 'Highest'];
+const HOLD_WHY = { group: 'Later with a group', hard: 'Too hard for now', item: 'Waiting for an item', other: 'Other' };
+const START_CLOCK = 19 * 60 + 12; // in-game time of sprint start (19:12)
+
+function initState(keepLang) {
+  seed(42);
+  const t = quests();
+  S = {
+    lang: keepLang || 'en', level: 17, xp: 9100, xpMax: 15400, group: false, ck: false, roa: false,
+    tickets: t, byId: Object.fromEntries(t.map(x => [x.id, x])),
+    clock: 34, z: 10,
+    set: { view: 'kanban', tmode: 'log', scale: 100, sort: 'priority', weight: 'balanced', cap: 60, toasts: true, holdCol: true, combo: true, review: true, showDone: true },
+    sprint: { n: 7, goal: { en: 'Finish the militia work and report to Gryan', nl: 'Het militiewerk afronden en verslag uitbrengen bij Gryan' }, goalEdited: null, burn: [], xp: 3120, gold: 2350, deaths: 1, levels: 0, combat: 14, walk: 13, idle: 7, kills: 31 },
+    hist: [
+      { n: 1, planned: 40, delivered: 31, played: 52, xp: 4100, gold: 1800, levels: 1, deaths: 2, split: [38, 44, 18] },
+      { n: 2, planned: 45, delivered: 40, played: 58, xp: 5200, gold: 2600, levels: 1, deaths: 1, split: [41, 42, 17] },
+      { n: 3, planned: 55, delivered: 42, played: 66, xp: 5600, gold: 3100, levels: 0, deaths: 3, split: [36, 45, 19] },
+      { n: 4, planned: 50, delivered: 47, played: 61, xp: 6300, gold: 2900, levels: 1, deaths: 0, split: [44, 40, 16] },
+      { n: 5, planned: 60, delivered: 51, played: 70, xp: 6800, gold: 4200, levels: 1, deaths: 1, split: [42, 41, 17] },
+      { n: 6, planned: 55, delivered: 53, played: 64, xp: 7400, gold: 3800, levels: 1, deaths: 2, split: [45, 38, 17], quests: 7 },
+    ],
+    ui: { sel: null, dtab: 'over', filter: 'all', fold: {}, tfold: {}, bfold: { hold: false }, lsort: { k: 'prio', d: -1 }, lgroup: 'epic', proposal: null, flowEpic: 'defias', trackerFolded: false, ptab: 'tracker' },
+    open: { tracker: true, sim: true, board: false, flow: false, review: false, settings: false },
+  };
+  S.lang = keepLang || 'en';
+  // learned spread: started wide, narrowed by kills already seen
+  for (const x of t) { x.spread = x.status === 'prog' ? 0.22 : 0.32; seedHistory(x); }
+  // burndown samples up to now
+  const now = remaining();
+  const pts = [0, 6, 12, 18, 24, 30, 34];
+  S.sprint.burn = pts.map((m, i) => ({ t: m, r: i === pts.length - 1 ? now : Math.round(52 - (52 - now) * (m / 34) + (i % 2 ? 1.5 : -1) * (i ? 1 : 0)) }));
+  S.sprint.burn[0].r = 52;
+}
+const Q = id => S.byId[id];
+const title = x => X(x.t);
+const epicName = e => X(EPICS[e].name);
+const clockStr = m => { const v = (START_CLOCK + Math.round(m)) % 1440; return String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(v % 60).padStart(2, '0'); };
+
+function seedHistory(x) {
+  const H = (at, type, a = {}) => x.hist.push({ at, type, a });
+  if (x.status === 'done' && x.doneSprint === 7) { H(-12, 'accepted'); H(-2, 'sprint'); H(8 + x.order * 4, 'ready'); H(10 + x.order * 4, 'done'); return; }
+  if (x.status === 'done') { H(-90, 'accepted'); H(-60, 'done'); return; }
+  if (!x.inLog) return;
+  H(-20 - x.est, 'accepted');
+  if (x.sprint) H(0, 'sprint');
+  if (x.hold) H(-5, 'hold', { why: x.hold.why });
+  if (x.block) H(-14, 'blocked', { lvl: x.block.lvl });
+  if (x.id === 'def4') { H(4, 'walk', { m: 6 }); H(9, 'ready'); }
+  if (x.id === 'band' || x.id === 'mil1' || x.id === 'linen') {
+    H(3, 'walk', { m: 3 });
+    let at = 6, pc = 0;
+    const mobs = ['Defias Trapper', 'Defias Smuggler'];
+    for (let i = 0; i < 9; i++) {
+      const f = { mob: mobs[i % 2], dur: 20 + Math.round(rnd() * 14), dps: 31 + Math.round(rnd() * 12), share: x.id === 'mil1' ? 2 : x.id === 'band' ? 2 : 3 };
+      x.fights.push(f); H(at, 'fight', f); at += 2;
+      if (i === 4 && x.id === 'mil1') H(at++, 'died');
+      if (i % 3 === 1) { pc++; H(at, 'progress', { o: 0, v: Math.max(1, Math.round(x.objs[0].have * pc / 3)) }); }
+    }
+  }
+  if (x.id === 'stew') { H(5, 'walk', { m: 4 }); for (let i = 0; i < 3; i++) { const f = { mob: 'Goretusk', dur: 18 + Math.round(rnd() * 10), dps: 34 + Math.round(rnd() * 8), share: 2 }; x.fights.push(f); H(14 + i * 2, 'fight', f); } H(20, 'progress', { o: 2 }); }
+}
+
+// ---------- model helpers ----------
+const frac = x => x.objs.length ? x.objs.reduce((s, o) => s + Math.min(1, o.have / o.need), 0) / x.objs.length : (x.status === 'done' ? 1 : 0);
+const complete = x => x.objs.length > 0 && x.objs.every(o => o.have >= o.need);
+const active = x => x.inLog && !x.upcoming && x.status !== 'done';
+function remEst(x) {
+  if (x.status === 'done') return 0;
+  if (x.status === 'ready') return Math.min(2, Math.max(1, x.est * 0.25));
+  return Math.max(1, x.est * (1 - frac(x) * 0.9));
+}
+function range(x) { const m = remEst(x); return [m, Math.max(1, Math.floor(m * (1 - x.spread))), Math.max(Math.ceil(m * (1 + x.spread * 1.35)), Math.round(m) + 1)]; }
+const estStr = x => { if (x.status === 'done') return T('Done'); const [m, lo, hi] = range(x); return '~' + mins(m) + ' (' + lo + '–' + hi + ')'; };
+const chainNext = x => S.tickets.find(y => y.after === x.id && y.status !== 'done');
+const hasUp = x => x.choose.some(i => i.up);
+function prioInfo(x) {
+  if (x.manual != null) return { p: x.manual, why: [x.kind === 'custom' ? T('custom ticket') : T('manual')], manual: true };
+  const why = [], w = S.set.weight, xpm = x.xp / Math.max(1, x.est);
+  let s = xpm / (w === 'xp' ? 45 : 55); why.push(T('XP/min %d', Math.round(xpm)));
+  if (chainNext(x) && w !== 'xp') { s += w === 'story' ? 2 : 1; why.push(w === 'story' ? T('chain +2') : T('chain +1')); }
+  if (hasUp(x)) { s += 1; why.push(T('upgrade +1')); }
+  if (x.status === 'ready') { s += 1.5; why.push(T('ready: quick XP')); }
+  const d = x.lvl - S.level;
+  if (d >= 5) { s -= 2; why.push(T('red -2')); } else if (d >= 3) { s -= 1; why.push(T('orange -1')); }
+  if (x.block) { s -= 2; why.push(T('blocked -2')); }
+  if (x.group && !S.group) { s -= 1; why.push(T('group quest solo -1')); }
+  return { p: s >= 4 ? 4 : s >= 3 ? 3 : s >= 2 ? 2 : s >= 1 ? 1 : 0, why };
+}
+const prio = x => prioInfo(x).p;
+function lvlColor(l) {
+  const d = l - S.level;
+  if (d >= 5) return '#ff3030'; if (d >= 3) return '#ff8a40'; if (d >= -2) return '#ffe14a';
+  if (l > S.level - 8) return '#45c048'; return '#8f8f8f';
+}
+function stKey(x) { return x.hold ? 'hold' : x.status; }
+function stLabel(x) { if (x.hold) return x.hold.ready ? T('Ready to resume') : T('On hold'); if (x.upcoming) return T('Upcoming'); if (!x.inLog && x.kind === 'quest' && x.status === 'todo') return T('Available'); return T(STAT_LABEL[x.status]); }
+const dist = x => Math.round(Math.hypot(x.x, x.y));
+const sprintItems = () => S.tickets.filter(x => x.sprint && (x.status !== 'done' || x.doneSprint === S.sprint.n));
+const load = () => sprintItems().reduce((s, x) => s + x.est, 0);
+const delivered = () => sprintItems().filter(x => x.status === 'done').reduce((s, x) => s + x.est, 0);
+const remaining = () => Math.round(sprintItems().reduce((s, x) => s + remEst(x), 0));
+const sharedNames = x => x.shared.map(Q).filter(y => y && active(y)).map(title);
+// learned drop rate: what you saw, blended with the default until there are enough kills
+const learnedDrop = (x, o) => x.kills > 0 && o.drop && o.drop < 1 ? (x.drops + o.drop * 4) / (x.kills + 4) : o.drop;
+
+// ---------- history text ----------
+function histText(h, x) {
+  const a = h.a;
+  switch (h.type) {
+    case 'accepted': return x.kind === 'custom' ? T('Ticket created') : T('Quest accepted');
+    case 'sprint': return T('Moved to sprint %d', S.sprint.n);
+    case 'backlog': return T('Back to backlog');
+    case 'progress': { const o = x.objs[a.o] || x.objs[0]; return T('Progress: %s', X(o.t) + ' ' + (a.v ?? o.have) + '/' + o.need); }
+    case 'fight': return T('Fight: %s · %ss · %s DPS', a.mob, a.dur, a.dps) + (a.share > 1 ? ' · ' + T('shared %d ways', a.share) : '') + (a.split ? ' · ' + T('split') : '');
+    case 'walk': return T('Walked %s', mins(a.m));
+    case 'died': return T('Died (corpse run)');
+    case 'ready': return T('Ready to turn in');
+    case 'done': return x.kind === 'custom' ? T('Done') : T('Turned in');
+    case 'status': return T('Moved to %s', T(STAT_LABEL[a.to]));
+    case 'hold': return T('Put on hold: %s', T(HOLD_WHY[a.why] || 'Other'));
+    case 'resume': return T('Resumed');
+    case 'resumeReady': return T('Ready to resume');
+    case 'blocked': return T('Blocked: %s', T('Level %d needed (you are %d)', a.lvl, S.level < a.lvl ? S.level : a.lvl - 1));
+    case 'unblocked': return T('Unblocked');
+    case 'used': return T('Used %s', X(x.item.n));
+    case 'loot': return T('Looted %s', X(a.n));
+    case 'moved': return T('Fight moved here from %s', a.from);
+    default: return h.type;
+  }
+}
+const HIST_COLOR = { accepted: '#8a93a0', sprint: '#3fc7eb', backlog: '#8a93a0', progress: '#3fc7eb', fight: '#e05050', walk: '#c9a227', died: '#555', ready: '#4fbf5a', done: '#4fbf5a', status: '#3fc7eb', hold: '#e8a33d', resume: '#4fbf5a', resumeReady: '#4fbf5a', blocked: '#e05050', unblocked: '#4fbf5a', used: '#ffd100', loot: '#ffd100', moved: '#a07ce0' };
+const addHist = (x, type, a = {}) => x.hist.push({ at: S.clock, type, a });
+
+// ---------- state changes ----------
+function setStatus(x, st, auto) {
+  if (x.status === st) return;
+  x.status = st;
+  addHist(x, 'status', { to: st });
+  if (st === 'done') { x.doneSprint = S.sprint.n; x.hold = null; }
+  if (st === 'ready' && x.kind === 'custom') { // custom tickets: Ready moves to Done by itself
+    x.status = 'done'; x.doneSprint = S.sprint.n; addHist(x, 'done');
+    toast(T('Done: %s', '<b>' + esc(title(x)) + '</b>'), '#4fbf5a'); return;
+  }
+  if (auto) {
+    if (st === 'prog') toast(T('Moved to %s: %s', T('In progress'), '<b>' + esc(title(x)) + '</b>'), '#3fc7eb');
+    if (st === 'ready') toast(T('Ready to turn in') + ': <b>' + esc(title(x)) + '</b>', '#4fbf5a');
+  }
+}
+function afterProgress(x) {
+  x.spread = Math.max(0.08, x.spread * 0.86);
+  if (x.status === 'todo' && x.objs.some(o => o.have > 0)) setStatus(x, 'prog', true);
+  if (complete(x) && (x.status === 'todo' || x.status === 'prog')) { addHist(x, 'ready'); setStatus(x, 'ready', true); }
+}
+function bump(x, oi, n = 1) {
+  const o = x.objs[oi]; if (!o || o.have >= o.need) return false;
+  o.have = Math.min(o.need, o.have + n); addHist(x, 'progress', { o: oi, v: o.have }); return true;
+}
+function burnSample() {
+  const b = S.sprint.burn, r = remaining(), t = Math.round(S.clock * 10) / 10;
+  if (b.length && Math.abs(b[b.length - 1].t - t) < 1) b[b.length - 1] = { t: b[b.length - 1].t, r }; else b.push({ t, r });
+}
+function fightTo(list, mob) {
+  const f = { mob, dur: 18 + Math.round(rnd() * 15), dps: 30 + Math.round(rnd() * 14), share: Math.max(1, list.length) };
+  for (const x of list) { x.fights.push(f); x.kills++; addHist(x, 'fight', f); x.spent += f.dur / 60; }
+  S.sprint.kills++; S.sprint.combat += f.dur / 60; S.clock += 0.6; return f;
+}
+const SIM = {
+  defias() {
+    const mil = Q('mil1'), band = Q('band'), lin = Q('linen'), mes = Q('def5');
+    // you pull the Defias type the militia still needs (as a player would)
+    const need = active(mil) ? mil.objs.filter(o => o.kill && o.have < o.need) : [];
+    const mob = need.length ? need[Math.floor(rnd() * need.length)].kill : (rnd() < 0.5 ? 'Defias Trapper' : 'Defias Smuggler');
+    const credit = [];
+    if (active(mil) && !mil.hold) { const oi = mil.objs.findIndex(o => o.kill === mob); if (bump(mil, oi)) credit.push(mil); }
+    // shared mobs: one kill counts for every quest that wants it; drops roll per quest
+    if (active(band) && band.objs[0].have < 15) { credit.push(band); if (rnd() < 0.4) { bump(band, 0); band.drops++; } }
+    if (active(lin) && lin.objs[0].have < 20) { credit.push(lin); if (rnd() < 0.3) { bump(lin, 0, rnd() < 0.3 ? 2 : 1); lin.drops++; } }
+    if (active(mes) && mes.objs[0].have < 1 && rnd() < 0.25) { bump(mes, 0); credit.push(mes); toast(T('The Defias Messenger dropped %s', '<b>A Mysterious Message</b>'), '#ffd100'); }
+    fightTo([...new Set(credit)], mob);
+    [...new Set(credit)].forEach(afterProgress);
+    if (!credit.length) toast(T('No quest needs %s any more.', mob), '#8a93a0');
+    S.sprint.xp += 230; S.xp += 230; levelCheck();
+    after();
+  },
+  goretusk() {
+    const stew = Q('stew'), pie = Q('pie'), credit = [];
+    if (active(stew)) { if (rnd() < 0.55 && bump(stew, 1)) credit.push(stew); else if (stew.objs[1].have < 3) credit.push(stew); }
+    if (active(pie)) { if (rnd() < 0.5 && bump(pie, 0)) credit.push(pie); else if (pie.objs[0].have < 8) credit.push(pie); }
+    fightTo(credit, 'Goretusk');
+    // first kill always gives the pie a liver, so the demo shows the status move quickly
+    if (pie.status === 'todo' && active(pie)) bump(pie, 0);
+    credit.forEach(afterProgress); afterProgress(pie);
+    if (!credit.length) toast(T('No quest needs %s any more.', 'Goretusk'), '#8a93a0');
+    S.sprint.xp += 210; S.xp += 210; levelCheck();
+    after();
+  },
+  vial(btn) {
+    const v = Q('vial');
+    if (!active(v) || complete(v)) { toast(T('The vial is already full.'), '#8a93a0'); return; }
+    bump(v, 0); addHist(v, 'used'); S.clock += 0.3; afterProgress(v);
+    after();
+  },
+  level() { S.xp = 0; S.level++; S.xpMax += 1000; S.sprint.levels++; levelUp(); after(); },
+  group() {
+    S.group = !S.group;
+    if (S.group) {
+      toast(T('You joined a group.'), '#d08cf0');
+      for (const x of S.tickets) {
+        if (x.hold && x.hold.resume === 'group' && !x.hold.ready) { x.hold.ready = true; addHist(x, 'resumeReady'); toast(T('Ready to resume') + ': <b>' + esc(title(x)) + '</b>', '#4fbf5a'); }
+      }
+    } else toast(T('You left the group.'), '#8a93a0');
+    after();
+  },
+  turnin() {
+    const ready = S.tickets.filter(x => x.status === 'ready' && x.kind === 'quest');
+    if (!ready.length) { toast(T('Nothing is ready to turn in.'), '#8a93a0'); return; }
+    for (const x of ready) {
+      addHist(x, 'done'); setStatus(x, 'done');
+      S.xp += x.xp; S.sprint.xp += x.xp; S.sprint.gold += x.money;
+      toast(T('Turned in: %s (+%s XP)', '<b>' + esc(title(x)) + '</b>', num(x.xp)), '#4fbf5a');
+      const nx = S.tickets.find(y => y.after === x.id);
+      if (nx && nx.upcoming) { nx.upcoming = false; nx.inLog = true; addHist(nx, 'accepted'); toast(T('New quest in your log: %s', '<b>' + esc(title(nx)) + '</b>'), '#ffd100'); }
+    }
+    S.clock += 1; levelCheck(); after();
+  },
+  advance() {
+    S.clock += 10; S.sprint.walk += 6; S.sprint.idle += 1.5; S.sprint.combat += 2.5;
+    for (const x of S.tickets) if (x.status === 'prog' && x.sprint) x.spent += 10 / Math.max(1, S.tickets.filter(y => y.status === 'prog' && y.sprint).length);
+    toast(T('10 minutes later…'), '#c9a227');
+    after();
+  },
+};
+function levelCheck() { while (S.xp >= S.xpMax) { S.xp -= S.xpMax; S.level++; S.xpMax += 1000; S.sprint.levels++; levelUp(); } }
+function levelUp() {
+  toast(T('Level up! You are now level %d.', S.level), '#ffd100');
+  for (const x of S.tickets) if (x.block && x.block.lvl && S.level >= x.block.lvl) { x.block = null; addHist(x, 'unblocked'); toast(T('Unblocked: %s', '<b>' + esc(title(x)) + '</b>'), '#4fbf5a'); }
+}
+function after() { burnSample(); render(); }
+
+// ---------- sprint actions ----------
+function backlogCands() { return S.tickets.filter(x => !x.sprint && !x.upcoming && x.status !== 'done' && (x.inLog || x.kind === 'quest')); }
+function planSprint() {
+  const room = S.set.cap - load();
+  const c = backlogCands().filter(x => !x.hold).sort((a, b) => prio(b) - prio(a) || (b.xp / b.est) - (a.xp / a.est));
+  const blocked = c.filter(x => x.block).length;
+  let used = 0; const pick = [];
+  for (const x of c) { if (x.block) continue; if (used + x.est <= room) { pick.push(x.id); used += x.est; } }
+  if (!pick.length) { S.ui.proposal = null; toast(T('Nothing fits the capacity (or the backlog is empty).'), '#8a93a0'); render(); return; }
+  S.ui.proposal = { ids: pick, min: used, blocked };
+  render();
+}
+function acceptProposal() {
+  const p = S.ui.proposal; if (!p) return;
+  for (const id of p.ids) addToSprint(Q(id), true);
+  toast(T('Added to the sprint: %d items, %s', p.ids.length, mins(p.min)), '#3fc7eb');
+  S.ui.proposal = null; after();
+}
+function addToSprint(x, quiet) {
+  if (x.upcoming) return;
+  x.sprint = true; x.order = Math.max(0, ...S.tickets.filter(y => y.sprint).map(y => y.order)) + 1;
+  addHist(x, 'sprint');
+  if (!quiet) { toast(T('Added to the sprint: %s', '<b>' + esc(title(x)) + '</b>'), '#3fc7eb'); after(); }
+}
+function toBacklog(x) {
+  x.sprint = false; addHist(x, 'backlog');
+  toast(T('Back to backlog') + ': <b>' + esc(title(x)) + '</b>', '#8a93a0'); after();
+}
+function newSprint() {
+  const sp = S.sprint, tot = sp.combat + sp.walk + sp.idle || 1;
+  S.hist.push({ n: sp.n, planned: load(), delivered: delivered(), played: Math.max(10, Math.round(S.clock)), xp: sp.xp, gold: sp.gold, levels: sp.levels, deaths: sp.deaths,
+    split: [Math.round(sp.combat / tot * 100), Math.round(sp.walk / tot * 100), 100 - Math.round(sp.combat / tot * 100) - Math.round(sp.walk / tot * 100)], quests: sprintItems().filter(x => x.status === 'done').length });
+  S.sprint = { n: sp.n + 1, goal: { en: '', nl: '' }, goalEdited: '', burn: [], xp: 0, gold: 0, deaths: 0, levels: 0, combat: 0, walk: 0, idle: 0, kills: 0 };
+  for (const x of S.tickets) x.sprint = active(x) && !x.hold && !x.block;
+  let o = 1; for (const x of S.tickets) if (x.sprint) { x.order = o++; addHist(x, 'sprint'); }
+  S.clock = 0; S.ui.proposal = null; burnSample();
+  toast(T('New sprint started.'), '#ffd100');
+  if (S.set.review) openWin('review');
+  render();
+}
+function putOnHold(x, why) {
+  x.hold = { why, resume: why === 'group' ? 'group' : why === 'hard' ? 'level' : 'manual', ready: why === 'group' && S.group };
+  addHist(x, 'hold', { why }); toast(T('Put on hold: %s', '<b>' + esc(title(x)) + '</b>'), '#e8a33d'); after();
+}
+function resume(x) { x.hold = null; addHist(x, 'resume'); toast(T('Resumed') + ': <b>' + esc(title(x)) + '</b>', '#4fbf5a'); after(); }
+function moveTo(x, st) {
+  if (x.upcoming) return;
+  x.hold = null;
+  if (st === 'done' && x.status !== 'done') { addHist(x, 'done'); if (x.kind === 'quest') { S.xp += x.xp; S.sprint.xp += x.xp; levelCheck(); } }
+  if (!x.inLog) { x.inLog = true; addHist(x, 'accepted'); }
+  setStatus(x, st); toast(T('Moved to %s: %s', T(STAT_LABEL[st]), '<b>' + esc(title(x)) + '</b>'), STAT_COLOR[st]); after();
+}
+function shiftClick(x) {
+  if (S.roa) toast(T('GPS stop added (Roads of Azeroth)') + ': <b>' + esc(title(x)) + '</b>', '#3fc7eb');
+  else toast(T('Super-tracked') + ': <b>' + esc(title(x)) + '</b>', '#ffd100');
+}
+// ======================================================================
+// rendering
+// ======================================================================
+function chev(p, s = 14) {
+  const P = [['#4c9aff', 'M3 3.5L7 7.5l4-4M3 7.5L7 11.5l4-4'], ['#4c9aff', 'M3 5L7 9l4-4'], ['#e8b63b', 'M3 5.2h8M3 8.8h8'], ['#f0743e', 'M3 9L7 5l4 4'], ['#e05050', 'M3 7L7 3l4 4M3 11L7 7l4 4']][p];
+  const n = esc(T(PRIO[p]));
+  return `<svg class="chev" width="${s}" height="${s}" viewBox="0 0 14 14" role="img" aria-label="${n}"><title>${n}</title><path d="${P[1]}" fill="none" stroke="${P[0]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+const npc = s => X(s).split(' · ')[0];
+function badges(x) {
+  const b = [];
+  if (x.block) b.push(`<span class="badge b-block">${I.lock}${esc(T('Blocked'))}</span>`);
+  if (x.hold) b.push(x.hold.ready ? `<span class="badge b-resume">${esc(T('Ready to resume'))}</span>` : `<span class="badge b-hold">${esc(T('On hold'))}</span>`);
+  if (x.status !== 'done') {
+    if (hasUp(x)) b.push(`<span class="badge b-up">&#9650; ${esc(T('Upgrade'))}</span>`);
+    if (x.status === 'ready' && x.kind === 'quest') b.push(`<span class="badge b-turn">${esc(T('Turn in: %s', npc(x.turnin)))}</span>`);
+    const sh = sharedNames(x);
+    if (sh.length) b.push(`<span class="badge b-share" title="${esc(T('shared with %s', sh.join(', ')))}">${I.link}${esc(T('shared with %s', sh[0] + (sh.length > 1 ? ' +' + (sh.length - 1) : '')))}</span>`);
+    if (x.group && !S.group) b.push(`<span class="badge b-group">${esc(T('Needs a group'))}</span>`);
+  }
+  if (x.demo) b.push(`<span class="badge b-demo">${esc(T('Demo quest'))}</span>`);
+  return b.join('');
+}
+const objLine = o => esc(X(o.t)) + (o.need > 1 ? '' : '');
+function checklist(x, max = 4) {
+  if (!x.objs.length) return '';
+  return '<ul class="chk">' + x.objs.slice(0, max).map(o => `<li class="${o.have >= o.need ? 'ok' : ''}"><span>${objLine(o)}</span>${o.need > 1 ? `<span class="pc">${o.have}/${o.need}</span>` : ''}</li>`).join('') + '</ul>';
+}
+function card(x) {
+  const e = EPICS[x.epic], p = prio(x), prop = S.ui.proposal && S.ui.proposal.ids.includes(x.id);
+  return `<div class="card${x.status === 'done' ? ' done' : ''}${S.ui.sel === x.id ? ' sel' : ''}${prop ? ' prop' : ''}" style="--ec:${e.color}" data-id="${x.id}" data-act="sel" tabindex="0" aria-label="${esc(title(x))}">
+<div class="c1"><span class="etag" style="color:${e.color}">${esc(epicName(x.epic))}</span>${x.xp ? `<span class="cxp">${num(x.xp)} XP</span>` : ''}${chev(p)}<button class="cm" data-act="menu" data-id="${x.id}" aria-label="${esc(T('Menu'))}">&#8943;</button></div>
+<div class="ctitle" style="color:${lvlColor(x.lvl)}">${esc(title(x))}<span class="lv">[${x.lvl}]</span></div>
+<div class="cest">${esc(estStr(x))}</div>
+<div class="badges">${badges(x)}</div>${checklist(x)}</div>`;
+}
+const MOBN = { defias: 'Defias', goretusk: 'Goretusk' };
+function cardsHtml(list) {
+  if (!S.set.combo) return list.map(card).join('');
+  const used = new Set(), out = [];
+  for (const x of list) {
+    if (used.has(x.id)) continue;
+    const mates = x.kind === 'quest' && x.status !== 'done' ? list.filter(y => y !== x && !used.has(y.id) && y.kind === 'quest' && x.shared.includes(y.id)) : [];
+    if (!mates.length) { out.push(card(x)); used.add(x.id); continue; }
+    const grp = [x, ...mates]; grp.forEach(y => used.add(y.id));
+    const mob = MOBN[(x.objs.find(o => o.mob) || {}).mob] || '';
+    const save = Math.round(grp.reduce((s, y) => s + remEst(y), 0) * 0.3);
+    out.push(`<div class="combo"><div class="ch">${I.link}<span>${esc(T('Combo: %d quests share %s', grp.length, mob))} · ${esc(T('saves ~%s together', mins(save)))}</span></div>${grp.map(card).join('')}</div>`);
+  }
+  return out.join('');
+}
+function passFilter(x) {
+  const f = S.ui.filter;
+  if (f === 'zone') return x.zone === Z.wf;
+  if (f === 'loose') return x.epic === 'loose' || x.epic === 'chores';
+  if (f.startsWith('epic:')) return x.epic === f.slice(5);
+  return true;
+}
+const boardItems = () => S.tickets.filter(x => !x.upcoming && (x.inLog || x.kind === 'custom') && (x.status !== 'done' || x.doneSprint === S.sprint.n) && passFilter(x));
+const byPrio = (a, b) => prio(b) - prio(a) || a.order - b.order || title(a).localeCompare(title(b));
+
+// ---------- tracker ----------
+const SORTS = ['priority', 'order', 'status', 'epic', 'level', 'xp', 'xpmin', 'est', 'zone', 'dist'];
+const SORT_LABEL = { priority: 'Priority', order: 'Sprint order', status: 'Status', epic: 'Epic', level: 'Level', xp: 'XP', xpmin: 'XP/min', est: 'Estimate', zone: 'Zone', dist: 'Distance', 'route-near': 'Smart route: nearest first', 'route-xp': 'Smart route: best XP per minute', 'route-story': 'Smart route: story first' };
+const sortList = () => S.roa ? [...SORTS, 'route-near', 'route-xp', 'route-story'] : SORTS;
+function sortItems(l, k) {
+  const ST = { ready: 0, prog: 1, todo: 2, done: 3 };
+  const f = {
+    priority: byPrio, order: (a, b) => a.order - b.order, status: (a, b) => (a.hold ? 4 : ST[a.status]) - (b.hold ? 4 : ST[b.status]) || byPrio(a, b),
+    epic: (a, b) => EPIC_ORDER.indexOf(a.epic) - EPIC_ORDER.indexOf(b.epic) || a.order - b.order, level: (a, b) => a.lvl - b.lvl, xp: (a, b) => b.xp - a.xp,
+    xpmin: (a, b) => b.xp / remEst(b) - a.xp / remEst(a), est: (a, b) => remEst(a) - remEst(b), zone: (a, b) => a.zone.localeCompare(b.zone) || byPrio(a, b), dist: (a, b) => dist(a) - dist(b),
+  }[k];
+  if (f) return [...l].sort(f);
+  // smart route (Roads of Azeroth): greedy chain from where you stand
+  const rest = [...l], out = []; let px = 0, py = 0;
+  while (rest.length) {
+    let best = 0, bs = -Infinity;
+    rest.forEach((x, i) => {
+      const d = Math.hypot(x.x - px, x.y - py), walk = d / 150;
+      let s = k === 'route-near' ? -d : k === 'route-xp' ? x.xp / (remEst(x) + walk) : (chainNext(x) || FLOWS[x.epic]?.main?.includes(x.id) ? 1000 : 0) - d;
+      if (x.block || x.hold) s -= 1e6;
+      if (s > bs) { bs = s; best = i; }
+    });
+    const x = rest.splice(best, 1)[0]; x._leg = Math.round(Math.hypot(x.x - px, x.y - py)); px = x.x; py = x.y; out.push(x);
+  }
+  return out;
+}
+function trackerItems() {
+  let l = S.tickets.filter(x => active(x));
+  if (S.set.tmode === 'sprint') l = l.filter(x => x.sprint);
+  return l;
+}
+function renderTracker() {
+  const it = sprintItems(), done = it.filter(x => x.status === 'done').length;
+  $('#tSprint').textContent = T('Sprint %d/%d · %d/%d min', done, it.length, load(), S.set.cap);
+  $('#tSprint').title = T('Click: open the quest board');
+  $('#tBoard').innerHTML = I.board; $('#tBoard').title = T('Open the board'); $('#tBoard').setAttribute('aria-label', T('Open the board'));
+  $('#tFold').innerHTML = S.ui.trackerFolded ? I.unfold : I.fold; $('#tFold').setAttribute('aria-label', T('Fold')); $('#tFold').title = T('Fold');
+  $('#w-tracker').classList.toggle('folded', S.ui.trackerFolded);
+  const sel = $('#tSort');
+  if (!sortList().includes(S.set.sort)) S.set.sort = 'priority';
+  sel.innerHTML = sortList().map(k => `<option value="${k}"${k === S.set.sort ? ' selected' : ''}>${esc(T('Sort: %s', T(SORT_LABEL[k])))}</option>`).join('');
+  $('#tVia').textContent = S.ck ? T('via CasterKit') : '';
+  $('#tScale').value = S.set.scale; $('#tScaleV').textContent = S.set.scale + '%';
+  $('#tBody').style.setProperty('--sc', S.set.scale / 100);
+  const list = sortItems(trackerItems(), S.set.sort);
+  const route = S.set.sort.startsWith('route');
+  const flat = route || ['zone', 'dist'].includes(S.set.sort);
+  let h = '<div class="trk">';
+  if (!list.length) h += `<div class="dempty">${esc(T('No quests to show.'))}</div>`;
+  if (flat) h += list.map((x, i) => trow(x, route ? i + 1 : 0)).join('');
+  else {
+    const groups = [];
+    for (const x of list) { let g = groups.find(g => g.e === x.epic); if (!g) groups.push(g = { e: x.epic, l: [] }); g.l.push(x); }
+    if (S.set.sort === 'epic') groups.sort((a, b) => EPIC_ORDER.indexOf(a.e) - EPIC_ORDER.indexOf(b.e));
+    for (const g of groups) {
+      const e = EPICS[g.e], all = S.tickets.filter(x => x.epic === g.e), dn = all.filter(x => x.status === 'done').length, open = !S.ui.tfold[g.e];
+      h += `<div class="tgrp" data-act="tgfold" data-e="${g.e}" role="button" tabindex="0" aria-expanded="${open}" style="color:${e.color}">${I.caret(open)}<span class="gn">${esc(epicName(g.e))}</span><span class="gbar"><i style="width:${Math.round(dn / all.length * 100)}%"></i></span><span class="gc">${esc(T('%d/%d done', dn, all.length))}</span></div>`;
+      if (open) h += g.l.map(x => trow(x)).join('');
+    }
+  }
+  $('#tBody').innerHTML = h + '</div>';
+}
+function trow(x, n) {
+  const sk = stKey(x), sh = sharedNames(x).length > 0;
+  let te = x.status === 'ready' ? T('Ready') : '~' + mins(remEst(x));
+  if (n) te = n + '. ' + num(x._leg) + ' ' + T('yd');
+  let h = `<div class="trow${S.ui.sel === x.id ? ' sel' : ''}" data-id="${x.id}" data-act="sel" tabindex="0" title="${esc(T('Click: open in the board · Shift-click: add as GPS stop'))}">${chev(prio(x), 13)}<span class="tt" style="color:${lvlColor(x.lvl)}">${esc(title(x))}${sh ? ' ' + I.link : ''}</span><span class="te" style="color:${STAT_COLOR[sk]}">${esc(te)}</span>`;
+  if (S.set.tmode !== 'titles') {
+    x.objs.forEach((o, i) => {
+      const ok = o.have >= o.need;
+      const btn = i === 0 && x.item && !complete(x) ? `<button class="qitem" data-act="useitem" data-id="${x.id}" title="${esc(T('Use %s', X(x.item.n)))}" aria-label="${esc(T('Use %s', X(x.item.n)))}">${glyph(x.item.g, 18)}</button>` : '';
+      h += `<div class="tobj${ok ? ' ok' : ''}"><span class="n">${esc(X(o.t))}</span>${o.need > 1 || !ok ? `<span>${o.have}/${o.need}</span>` : ''}${btn}</div>`;
+    });
+  }
+  const meta = [];
+  if (x.block) meta.push(`<span class="badge b-block">${I.lock}${esc(T('Blocked'))}</span>`);
+  if (x.hold) meta.push(x.hold.ready ? `<span class="badge b-resume">${esc(T('Ready to resume'))}</span>` : `<span class="badge b-hold">${esc(T('On hold'))}</span>`);
+  if (meta.length) h += `<div class="tmeta">${meta.join('')}</div>`;
+  return h + '</div>';
+}
+
+// ---------- board ----------
+const VIEWS = ['kanban', 'scrum', 'list'];
+function renderBoard() {
+  $('#bTitle').innerHTML = esc(T('Quest board')) + `<small>${esc(T('Sprint %d', S.sprint.n))} · ${esc(T('Level %d', S.level))}</small>`;
+  const v = S.set.view, f = S.ui.filter;
+  const fopts = [['all', T('All')], ['zone', T('Current zone') + ' (Westfall)'], ['loose', T('Loose tasks')], ...EPIC_ORDER.filter(e => e !== 'loose').map(e => ['epic:' + e, T('Epic: %s', epicName(e))])];
+  $('#bTool').innerHTML = `<div role="tablist" aria-label="${esc(T('Board mode'))}">${VIEWS.map(k => `<button class="btn${v === k ? ' on' : ''}" role="tab" id="vt-${k}" aria-selected="${v === k}" tabindex="${v === k ? 0 : -1}" data-act="view" data-v="${k}">${esc(T(k[0].toUpperCase() + k.slice(1)))}</button>`).join('')}</div>
+<select id="bFilter" aria-label="${esc(T('Filter'))}">${fopts.map(([k, l]) => `<option value="${k}"${k === f ? ' selected' : ''}>${esc(T('Filter: %s', l))}</option>`).join('')}</select>
+<span class="sp"></span>
+<button class="btn" data-act="newticket">${esc(T('+ Ticket'))}</button><button class="btn" data-act="open" data-w="review">${esc(T('Review'))}</button><button class="btn" data-act="open" data-w="flow">${esc(T('Flow'))}</button><button class="btn" data-act="open" data-w="settings">${esc(T('Settings'))}</button>`;
+  const view = $('#bView');
+  const st = view.scrollTop;
+  view.innerHTML = v === 'kanban' ? kanbanHtml() : v === 'scrum' ? scrumHtml() : listHtml();
+  view.setAttribute('role', 'tabpanel'); view.setAttribute('aria-labelledby', 'vt-' + v);
+  view.scrollTop = st;
+  $('#bFoot').innerHTML = `<span>${esc(T('Click: details · Shift-click: %s · Right-click: menu', S.roa ? T('GPS stop') : T('super-track')))}</span><span class="sp"></span><span>${esc(T('Style: %s', S.ck ? 'CasterKit' : 'Scrum of Azeroth'))}</span>`;
+  renderDetail();
+}
+function kanbanHtml() {
+  const items = boardItems(), cols = [...STAT];
+  if (S.set.holdCol) cols.push('hold');
+  const colOf = x => x.hold ? (S.set.holdCol ? 'hold' : 'todo') : x.status;
+  return '<div class="kan">' + cols.map(c => {
+    const l = items.filter(x => colOf(x) === c).sort(byPrio);
+    const main = c === 'todo' && !S.set.holdCol ? l.filter(x => !x.hold) : l, lane = c === 'todo' && !S.set.holdCol ? l.filter(x => x.hold) : [];
+    const lbl = c === 'hold' ? T('On hold') : T(STAT_LABEL[c]);
+    return `<section class="col" aria-label="${esc(lbl)}" data-col="${c}"><div class="colh"><i style="background:${STAT_COLOR[c]}"></i>${esc(lbl)}<span class="cnt">${l.length}</span></div><div class="colb">${cardsHtml(main)}${lane.length ? `<div class="lane">${esc(T('On hold'))}</div>${lane.map(card).join('')}` : ''}${!l.length ? `<div class="hint" style="padding:6px">${esc(T('Empty'))}</div>` : ''}</div></section>`;
+  }).join('') + '</div>';
+}
+function xph() { const h = S.hist.slice(-3); return h.reduce((s, r) => s + r.xp, 0) / h.reduce((s, r) => s + r.played, 0) * 60; }
+function forecast() {
+  const rate = xph(), need = S.xpMax - S.xp, t = need / rate * 60;
+  const rem = sprintItems().filter(x => x.status !== 'done').reduce((s, x) => s + x.xp, 0);
+  let lvl = S.level, p = S.xp + rem, max = S.xpMax;
+  while (p >= max) { p -= max; lvl++; max += 1000; }
+  return T('Level %d in ~%s at your current pace', S.level + 1, mins(t)) + ' · ' + T('This sprint brings you to level %d (+%d%%)', lvl, Math.round(p / max * 100));
+}
+function burnSvg(w = 264, h = 92) {
+  const b = S.sprint.burn, c = Math.max(load(), ...b.map(p => p.r), 1), last = b.length ? b[b.length - 1].t : 0, T0 = Math.max(S.set.cap, last + 5);
+  const L = 24, R = 6, TP = 8, B = 16, X0 = t => L + t / T0 * (w - L - R), Y0 = r => TP + (1 - r / c) * (h - TP - B);
+  const pts = b.map(p => X0(p.t).toFixed(1) + ',' + Y0(p.r).toFixed(1)).join(' ');
+  return `<svg class="burn" width="100%" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(T('Burndown'))}"><title>${esc(T('Remaining estimated minutes since the sprint started. Dashed: the ideal line.'))}</title>
+<path d="M${L} ${TP}V${h - B}H${w - R}" fill="none" stroke="#2a303a"/>
+${[0.5].map(f => `<path d="M${L} ${Y0(c * f)}H${w - R}" stroke="#191d24"/>`).join('')}
+<path d="M${X0(0)} ${Y0(c)}L${X0(S.set.cap)} ${Y0(0)}" stroke="#8a93a0" stroke-dasharray="4 3" fill="none"/>
+<path d="M${X0(S.clock)} ${TP}V${h - B}" stroke="#ffd100" stroke-opacity=".35"/>
+<polyline points="${pts}" fill="none" stroke="#3fc7eb" stroke-width="1.8"/>
+${b.map(p => `<rect x="${X0(p.t) - 1.5}" y="${Y0(p.r) - 1.5}" width="3" height="3" fill="#3fc7eb"/>`).join('')}
+<text x="${L - 3}" y="${TP + 4}" text-anchor="end">${Math.round(c)}</text><text x="${L - 3}" y="${h - B}" text-anchor="end">0</text>
+<text x="${L}" y="${h - 4}">0</text><text x="${w - R}" y="${h - 4}" text-anchor="end">${Math.round(T0)} min</text>
+<text x="${X0(S.clock)}" y="${h - 4}" text-anchor="middle" fill="#c9a227">${Math.round(S.clock)}</text></svg>`;
+}
+function srow(x, btn) {
+  const e = EPICS[x.epic], grey = x.upcoming;
+  const mini = (x.block ? `<span class="badge b-block">${esc(T('Blocked'))}</span> ` : '') + (x.hold ? (x.hold.ready ? `<span class="badge b-resume">${esc(T('Ready to resume'))}</span> ` : `<span class="badge b-hold">${esc(T('On hold'))}</span> `) : '') + (x.status === 'ready' ? `<span class="badge b-turn">${esc(T('Ready'))}</span> ` : '');
+  const est = grey ? T('after: %s', title(Q(x.after))) : estStr(x);
+  return `<div class="srow${grey ? ' grey' : ''}${x.status === 'done' ? ' done' : ''}${S.ui.sel === x.id ? ' sel' : ''}" style="--ec:${e.color}" data-id="${x.id}" data-act="sel" tabindex="0">${chev(prio(x), 13)}<span class="nm" style="color:${lvlColor(x.lvl)}">${esc(title(x))}<small>${esc(epicName(x.epic))}</small></span><span class="es">${mini}${esc(est)}</span>${btn || '<span></span>'}</div>`;
+}
+function scrumHtml() {
+  const cap = S.set.cap, ld = load(), dv = delivered();
+  const goal = S.sprint.goalEdited != null ? S.sprint.goalEdited : X(S.sprint.goal);
+  let h = `<div class="strip"><div>
+<div class="goal"><label class="gold o" for="goal">${esc(T('Sprint goal'))}</label><input id="goal" type="text" value="${esc(goal)}" placeholder="${esc(T('What should this sprint deliver?'))}"></div>
+<div class="nums"><span>${esc(T('Sprint'))} <b class="gold">${S.sprint.n}</b></span><span>${T('Committed %s / Delivered %s', '<b>' + mins(ld) + '</b>', '<b class="green">' + mins(dv) + '</b>')}</span><span>${esc(T('Capacity: %d / %d min', ld, cap))}</span></div>
+<div class="cap" title="${esc(T('Capacity: %d / %d min', ld, cap))}"><i class="${ld > cap ? 'ov' : ''}" style="width:${Math.min(100, ld / cap * 100)}%"></i><i class="dv" style="width:${Math.min(100, dv / cap * 100)}%"></i></div>
+<div class="fc">${esc(forecast())}</div>
+<div class="sbtn"><button class="btn pri" data-act="plan" title="${esc(T('Proposes the top backlog items that fit the capacity. Nothing is added until you accept.'))}">${esc(T('Plan sprint'))}</button><button class="btn" data-act="newsprint">${esc(T('Start new sprint'))}</button><span class="hint">${esc(T('Remaining: %s', mins(remaining())))}</span></div>
+</div><div><div class="hint" style="display:flex;justify-content:space-between"><span>${esc(T('Burndown'))}</span><span>${esc(T('Dashed: ideal'))}</span></div>${burnSvg()}</div></div>`;
+  const p = S.ui.proposal;
+  if (p) h += `<div class="prop-box" role="region" aria-label="${esc(T('Proposed'))}"><b class="gold">${esc(T('Proposed: %d items, %s', p.ids.length, mins(p.min)))}</b>${p.blocked ? ` <span class="hint">(${esc(T('%d blocked skipped', p.blocked))})</span>` : ''}<ul>${p.ids.map(id => `<li>${esc(title(Q(id)))} <span class="hint">${esc(estStr(Q(id)))}</span></li>`).join('')}</ul><button class="btn pri" data-act="accept">${esc(T('Accept'))}</button> <button class="btn" data-act="cancelprop">${esc(T('Cancel'))}</button></div>`;
+  const sp = sprintItems().filter(passFilter).sort((a, b) => (a.status === 'done') - (b.status === 'done') || a.order - b.order);
+  h += `<div class="scr"><section class="pane"><h3 class="gold">${esc(T('Current sprint'))}<span class="cnt">${sp.length}</span></h3><div class="pb">${sp.map(x => srow(x, x.status === 'done' ? '' : `<button class="btn sm" data-act="back" data-id="${x.id}">${esc(T('Back to backlog'))}</button>`)).join('') || `<div class="hint">${esc(T('The sprint is empty. Use Plan sprint or add items from the backlog.'))}</div>`}</div></section>`;
+  const bl = S.tickets.filter(x => !x.sprint && x.status !== 'done' && passFilter(x));
+  const G = [
+    ['log', T('In your log'), bl.filter(x => (x.inLog || x.kind === 'custom') && !x.upcoming && !x.hold)],
+    ['avail', T('Available'), bl.filter(x => !x.inLog && !x.upcoming && x.kind === 'quest')],
+    ['up', T('Upcoming'), bl.filter(x => x.upcoming)],
+    ['hold', T('On hold'), bl.filter(x => x.hold)],
+  ];
+  h += `<section class="pane"><h3 class="gold">${esc(T('Backlog'))}<span class="cnt">${bl.length}</span></h3><div class="pb">`;
+  for (const [k, lbl, l] of G) {
+    const open = !S.ui.bfold[k];
+    h += `<div class="grp"><button class="grph" data-act="bfold" data-g="${k}" aria-expanded="${open}">${I.caret(open)}${esc(lbl)}<span class="cnt">${l.length}</span></button>`;
+    if (open) h += l.sort(byPrio).map(x => srow(x, x.upcoming ? '' : `<button class="btn sm" data-act="add" data-id="${x.id}">${esc(T('+ Add to sprint'))}</button>`)).join('');
+    h += '</div>';
+  }
+  return h + '</div></section></div>';
+}
+const LCOLS = [['prio', 'P'], ['quest', 'Quest'], ['epic', 'Epic'], ['status', 'Status'], ['est', 'Estimate'], ['xp', 'XP'], ['prog', 'Progress']];
+function listHtml() {
+  const items = S.tickets.filter(x => !x.upcoming && (x.status !== 'done' || x.doneSprint === S.sprint.n) && passFilter(x));
+  const { k, d } = S.ui.lsort, ST = { ready: 0, prog: 1, todo: 2, done: 3 };
+  const key = {
+    prio: prio, quest: x => title(x).toLowerCase(), epic: x => EPIC_ORDER.indexOf(x.epic), status: x => x.hold ? 4 : ST[x.status], est: remEst, xp: x => x.xp, prog: frac,
+  }[k];
+  items.sort((a, b) => { const A = key(a), B = key(b); return (A < B ? -1 : A > B ? 1 : 0) * d || byPrio(a, b); });
+  const gk = S.ui.lgroup, gkey = { epic: x => epicName(x.epic), zone: x => x.zone, status: x => stLabel(x), none: () => '' }[gk];
+  let h = `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><label class="hint" for="lgroup">${esc(T('Group by'))}</label><select id="lgroup">${[['epic', 'Epic'], ['zone', 'Zone'], ['status', 'Status'], ['none', 'None']].map(([v, l]) => `<option value="${v}"${v === gk ? ' selected' : ''}>${esc(T(l))}</option>`).join('')}</select><span class="hint">${esc(T('Click a column header to sort.'))}</span></div><div class="tblw"><table class="tbl"><thead><tr>`;
+  h += LCOLS.map(([c, l]) => `<th aria-sort="${c === k ? (d > 0 ? 'ascending' : 'descending') : 'none'}"><button data-act="lsort" data-k="${c}">${esc(T(l))}${c === k ? (d > 0 ? ' &#9650;' : ' &#9660;') : ''}</button></th>`).join('') + '</tr></thead><tbody>';
+  const groups = [];
+  for (const x of items) { const g = gkey(x); let G = groups.find(y => y.g === g); if (!G) groups.push(G = { g, l: [] }); G.l.push(x); }
+  const GO = { epic: g => EPIC_ORDER.findIndex(e => epicName(e) === g), status: g => [T('Ready'), T('In progress'), T('To do'), T('Available'), T('On hold'), T('Ready to resume'), T('Done')].indexOf(g), zone: g => g };
+  if (GO[gk]) groups.sort((a, b) => { const A = GO[gk](a.g), B = GO[gk](b.g); return A < B ? -1 : A > B ? 1 : 0; });
+  for (const G of groups) {
+    if (gk !== 'none') h += `<tr class="gh"><td colspan="7">${esc(G.g)} <span class="muted">(${G.l.length})</span></td></tr>`;
+    for (const x of G.l) {
+      const e = EPICS[x.epic], f = frac(x), sk = stKey(x);
+      h += `<tr class="r${S.ui.sel === x.id ? ' sel' : ''}" data-id="${x.id}" data-act="sel" tabindex="0"><td>${chev(prio(x), 13)}</td><td class="qn" style="color:${lvlColor(x.lvl)}">${esc(title(x))}${x.block ? ' ' + I.lock : ''}</td><td><span class="etag" style="color:${e.color}">${esc(epicName(x.epic))}</span></td><td style="color:${STAT_COLOR[sk]}">${esc(stLabel(x))}</td><td>${esc(estStr(x))}</td><td class="xpc">${x.xp ? num(x.xp) : '–'}</td><td><span class="pbar"><i style="width:${Math.round(f * 100)}%;background:${f >= 1 ? 'var(--green)' : 'var(--acc)'}"></i></span> <span class="hint">${Math.round(f * 100)}%</span></td></tr>`;
+    }
+  }
+  return h + '</tbody></table></div>';
+}
+
+// ---------- detail panel ----------
+function itemSq(i) {
+  const tip = `<div class="tn" style="color:${QUAL[i.q]}">${esc(i.n)}</div><div class="ts">${esc(T(i.slot))} · ${esc(T('Quest reward'))}</div>${i.up ? `<div class="green">&#9650; ${esc(T('Upgrade over what you wear now (demo comparison)'))}</div>` : ''}`;
+  return `<div class="item" style="--q:${QUAL[i.q]}" data-tiph="${esc(tip)}" tabindex="0" aria-label="${esc(i.n)}">${glyph(i.g, 26)}${i.up ? `<span class="up">${esc(T('UP'))}</span>` : ''}${i.ct ? `<span class="ct">${i.ct}</span>` : ''}</div>`;
+}
+function epicSteps(x) {
+  const f = FLOWS[x.epic]; if (!f) return '';
+  const ids = f.main ? [...f.main, ...f.side.map(s => s.id).filter(id => Q(id).epic === x.epic)] : f.free;
+  return '<ul class="steps">' + ids.map(id => {
+    const y = Q(id), c = y.status === 'done' ? 'd' : active(y) ? 'c' : 'u', m = c === 'd' ? '&#10003;' : c === 'c' ? '&#9679;' : '&#9675;';
+    return `<li class="${c}${y.id === x.id ? ' cur' : ''}" data-act="sel" data-id="${id}" tabindex="0"><span class="m">${m}</span><span>${esc(title(y))}</span><span class="hint" style="margin-left:auto">[${y.lvl}]</span></li>`;
+  }).join('') + '</ul>';
+}
+function renderDetail() {
+  const el = $('#bDetail'), x = S.ui.sel && Q(S.ui.sel);
+  if (!x) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  const e = EPICS[x.epic], pi = prioInfo(x), sk = stKey(x), tab = S.ui.dtab;
+  let h = `<div class="dh"><div class="meta"><span class="etag" style="color:${e.color}">${esc(epicName(x.epic))}</span>${chev(pi.p)}<span>${esc(T(PRIO[pi.p]))}</span><span class="pill" style="background:${STAT_COLOR[sk]}">${esc(stLabel(x))}</span><span style="flex:1"></span><button class="btn ib" data-act="dclose" aria-label="${esc(T('Close details'))}" title="${esc(T('Close details'))}">${I.close}</button></div>
+<div class="dt o"><span style="color:${lvlColor(x.lvl)}">${esc(title(x))}</span></div>
+<div class="meta"><span class="muted">${esc(T('Level %d', x.lvl))}</span><span class="muted">${esc(x.zone)}</span><span>${esc(estStr(x))}</span>${x.xp ? `<span class="xpc">${num(x.xp)} XP</span>` : ''}</div></div>
+<div class="dtabs" role="tablist" aria-label="${esc(T('Details'))}">${[['over', 'Overview'], ['stats', 'Stats'], ['hist', 'History']].map(([k, l]) => `<button role="tab" id="dt-${k}" aria-selected="${tab === k}" tabindex="${tab === k ? 0 : -1}" data-act="dtab" data-v="${k}">${esc(T(l))}</button>`).join('')}</div>
+<div class="dbody" role="tabpanel" aria-labelledby="dt-${tab}">`;
+  h += tab === 'over' ? overview(x, pi) : tab === 'stats' ? statsHtml(x) : histHtml(x);
+  const db = el.querySelector('.dbody'), st = db ? db.scrollTop : 0;
+  el.innerHTML = h + '</div>';
+  if (db && el.dataset.id === x.id && el.dataset.tab === tab) el.querySelector('.dbody').scrollTop = st;
+  el.dataset.id = x.id; el.dataset.tab = tab;
+}
+function overview(x, pi) {
+  let h = `<p class="desc">${esc(X(x.d))}</p>`;
+  if (x.block) h += `<div class="note red"><b>${esc(T('Blocked'))}</b>: ${esc(T('Level too high'))} · ${esc(T('Level %d needed (you are %d)', x.block.lvl, S.level))}<br><span class="hint">${esc(T('Resume when: level %d', x.block.lvl))}</span></div>`;
+  if (x.hold) h += x.hold.ready
+    ? `<div class="note grn"><b>${esc(T('Ready to resume'))}</b>: ${esc(T(HOLD_WHY[x.hold.why]))} <button class="btn sm" data-act="resume" data-id="${x.id}">${esc(T('Resume'))}</button></div>`
+    : `<div class="note"><b>${esc(T('On hold'))}</b>: ${esc(T(HOLD_WHY[x.hold.why]))}<br><span class="hint">${esc(x.hold.resume === 'group' ? T('Resume when: in a group') : x.hold.resume === 'level' ? T('Resume when: level %d', S.level + 1) : T('Resume by hand'))}</span></div>`;
+  if (x.objs.length) {
+    h += `<div class="sec">${esc(T('Objectives'))}</div>`;
+    x.objs.forEach((o, i) => {
+      const ok = o.have >= o.need, left = o.need - o.have, notes = [];
+      if (!ok && o.drop && o.drop < 1) { const r = learnedDrop(x, o); notes.push(T('learned drop %d%%', Math.round(r * 100)), T('~%d more kills', Math.ceil(left / r))); }
+      else if (!ok && o.kill) notes.push(T('~%d more kills', left));
+      if (!ok && o.use) notes.push(T('Use %s at the well', X(x.item.n)));
+      if (!ok && o.step) notes.push(T('Click to tick it off'));
+      if (!ok && o.mob) { const sh = sharedNames(x); if (sh.length) notes.push(T('shared with %s', sh.join(', '))); }
+      h += `<div class="obj${ok ? ' ok' : ''}"${o.step && !ok ? ` data-act="tick" data-id="${x.id}" data-o="${i}" role="button" tabindex="0" style="cursor:pointer"` : ''}><div class="on"><span>${ok ? '<span class="green">&#10003;</span> ' : ''}${esc(X(o.t))}</span><span>${o.have}/${o.need}</span></div><div class="bar"><i style="width:${o.have / o.need * 100}%"></i></div>${notes.length ? `<div class="nt">${esc(notes.join(' · '))}</div>` : ''}</div>`;
+    });
+    if (x.item && !complete(x)) h += `<button class="btn" data-act="useitem" data-id="${x.id}">${glyph(x.item.g, 14)} ${esc(T('Use %s', X(x.item.n)))}</button>`;
+  }
+  h += `<div class="hint" style="margin-top:4px">${esc(T('Priority'))}: ${esc(pi.manual ? T('manual') : T('Automatic'))} · ${esc(pi.why.join(' · '))}</div>`;
+  if (x.choose.length || x.get.length || x.xp || x.money) {
+    h += `<div class="sec">${esc(T('Rewards'))}</div>`;
+    if (x.choose.length) h += `<div class="hint">${esc(T('Choose one of:'))}</div><div class="rew">${x.choose.map(itemSq).join('')}</div>`;
+    if (x.get.length) h += `<div class="hint" style="margin-top:4px">${esc(T('You will receive:'))}</div><div class="rew">${x.get.map(itemSq).join('')}</div>`;
+    h += `<div style="margin-top:5px;display:flex;gap:12px;font-size:12px">${x.xp ? `<span class="xpc">${num(x.xp)} XP</span>` : ''}${x.money ? money(x.money) : ''}</div>`;
+  }
+  const steps = epicSteps(x);
+  if (steps) h += `<div class="sec">${esc(FLOWS[x.epic].main ? T('Epic steps') : T('In this group'))} <span class="hint" style="text-transform:none;letter-spacing:0">(${esc(epicName(x.epic))})</span></div>${steps}`;
+  h += `<div class="sec">${esc(T('Where'))}</div><dl class="kv"><dt>${esc(T('Quest giver'))}</dt><dd>${esc(X(x.giver))}</dd><dt>${esc(T('Turn in'))}</dt><dd>${esc(X(x.turnin))}</dd><dt>${esc(T('Zone'))}</dt><dd>${esc(x.zone)}</dd><dt>${esc(T('Distance'))}</dt><dd>${num(dist(x))} ${esc(T('yd'))}</dd></dl>`;
+  h += `<div class="acts"><button class="btn" data-act="dact" data-v="track" data-id="${x.id}">${esc(T('Track'))}</button><button class="btn" data-act="dact" data-v="map" data-id="${x.id}">${esc(T('Show on map'))}</button><button class="btn" data-act="dact" data-v="gps" data-id="${x.id}" ${S.roa ? '' : 'disabled'} title="${esc(S.roa ? T('Add as GPS stop') : T('Needs Roads of Azeroth'))}">${esc(T('GPS stop'))}</button><button class="btn" data-act="dact" data-v="log" data-id="${x.id}">${esc(T('Quest log'))}</button>${x.hold ? `<button class="btn" data-act="resume" data-id="${x.id}">${esc(T('Resume'))}</button>` : `<button class="btn" data-act="dact" data-v="hold" data-id="${x.id}">${esc(T('On hold…'))}</button>`}<button class="btn" data-act="dact" data-v="move" data-id="${x.id}">${esc(T('Move to…'))}</button></div>`;
+  return h;
+}
+function spark(vals, w = 120, h = 26) {
+  if (vals.length < 2) return '';
+  const mn = Math.min(...vals) - 2, mx = Math.max(...vals) + 2;
+  const p = vals.map((v, i) => (i / (vals.length - 1) * (w - 2) + 1).toFixed(1) + ',' + (h - 2 - (v - mn) / (mx - mn) * (h - 4)).toFixed(1)).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${p}" fill="none" stroke="#3fc7eb" stroke-width="1.5"/></svg>`;
+}
+function statsHtml(x) {
+  const f = x.fights, n = f.length;
+  if (!n && x.status !== 'done') return `<div class="dempty">${esc(T('No fights recorded yet for this quest.'))}<br><span class="hint">${esc(T('Estimates use the defaults until you play it.'))}</span></div>`;
+  const dps = n ? Math.round(f.reduce((s, a) => s + a.dps, 0) / n) : 0, dur = n ? Math.round(f.reduce((s, a) => s + a.dur, 0) / n) : 0;
+  const spent = Math.max(x.spent, n * dur / 60 * 1.6, 0.5), estDone = x.est * frac(x), eff = clamp(estDone / spent, 0, 1.5);
+  const dropO = x.objs.find(o => o.drop && o.drop < 1);
+  const xpm = x.xp ? Math.round(x.xp / Math.max(1, x.status === 'done' ? x.est : spent + remEst(x))) : 0;
+  const down = x.down || 10;
+  let h = `<div class="sec">${esc(T('Combat'))}</div><div class="stat"><span>${esc(T('Fights'))}</span><span class="v">${n}</span><span>${esc(T('Average fight'))}</span><span class="v">${dur}s</span><span>${esc(T('Average DPS'))}</span><span class="v">${dps}</span></div>${spark(f.map(a => a.dps))}`;
+  if (dropO) h += `<div class="stat" style="margin-top:4px"><span>${esc(T('Drops per kill'))}</span><span class="v">${dec(x.kills ? x.drops / x.kills : 0, 2)}</span><span>${esc(T('Learned drop chance'))}</span><span class="v">${Math.round(learnedDrop(x, dropO) * 100)}%</span></div>`;
+  h += `<div class="sec">${esc(T('Time'))}</div><div class="stat"><span>${esc(T('Actual time'))}</span><span class="v">${mins(spent)}</span><span>${esc(T('Estimated for this part'))}</span><span class="v">${mins(estDone)}</span><span>${esc(T('Downtime (eating, drinking)'))}</span><span class="v">${down}%</span><span>${esc(T('XP per minute'))}</span><span class="v xpc">${xpm || '–'}</span></div>`;
+  const col = eff >= 0.9 ? 'var(--green)' : eff >= 0.65 ? 'var(--gold)' : 'var(--red)';
+  h += `<div class="sec">${esc(T('Efficiency'))}</div><div class="eff" role="img" aria-label="${Math.round(eff * 100)}%"><i style="width:${Math.min(100, eff / 1.5 * 100)}%;background:${col}"></i></div><div class="hint">${esc(T('%d%% of the estimate (100%% = as fast as estimated)', Math.round(eff * 100)))}</div>`;
+  const sh = sharedNames(x);
+  const tip = down > 15 ? T('Tip: you rest %d%% of the time. Pull the next mob while your mana comes back, or drink less often.', down) : sh.length ? T('Tip: do this together with %s; the same kills count for both.', sh[0]) : T('Tip: the range narrows with every fight; after a few more it is close to your real pace.');
+  return h + `<div class="note grn" style="margin-top:8px">${esc(tip)}</div>`;
+}
+function sig(share) { const on = share <= 1 ? 3 : share === 2 ? 2 : 1; return `<span class="sig" title="${esc(T('Attribution: %s', share <= 1 ? T('certain') : T('shared %d ways', share)))}">${[4, 6, 9].map((hh, i) => `<i class="${i < on ? 'on' : ''}" style="height:${hh}px"></i>`).join('')}</span>`; }
+function histHtml(x) {
+  if (!x.hist.length) return `<div class="dempty">${esc(T('Nothing happened yet.'))}</div>`;
+  const l = x.hist.map((h, i) => ({ h, i })).sort((a, b) => b.h.at - a.h.at || b.i - a.i);
+  return `<div class="hint" style="margin-bottom:5px">${esc(T('Newest first. Right-click a fight: move or split it.'))}</div><ul class="tl">` + l.map(({ h, i }) => `<li class="${h.type === 'fight' ? 'fight' : ''}" style="--dc:${HIST_COLOR[h.type] || '#555'}"${h.type === 'fight' ? ` data-fight="${i}" data-id="${x.id}" tabindex="0"` : ''}><span class="tm">${clockStr(h.at)}</span>${h.type === 'fight' ? sig(h.a.share) : ''}${esc(histText(h, x))}</li>`).join('') + '</ul>';
+}
+
+// ---------- review ----------
+function renderReview() {
+  $('#rTitle').textContent = T('Sprint review');
+  const r = S.hist[S.hist.length - 1], h6 = S.hist.slice(-6);
+  const ratio = Math.round(S.hist.slice(-3).reduce((s, a) => s + a.delivered / a.planned, 0) / Math.min(3, S.hist.length) * 100);
+  const sugg = Math.round(S.hist.slice(-3).reduce((s, a) => s + a.delivered, 0) / Math.min(3, S.hist.length) / 5) * 5 + 5;
+  const xphr = Math.round(r.xp / r.played * 60);
+  let h = `<div class="rv"><div class="muted">${esc(T('Last finished sprint'))}: <b class="gold">${esc(T('Sprint %d', r.n))}</b> · ${esc(T('played %s', mins(r.played)))}</div>
+<div class="kpis"><div class="kpi"><div class="k">${esc(T('Planned / delivered'))}</div><div class="v">${r.delivered}<span class="muted" style="font-size:12px"> / ${r.planned} min</span></div></div>
+<div class="kpi"><div class="k">${esc(T('XP per hour'))}</div><div class="v xpc">${num(xphr)}</div></div>
+<div class="kpi"><div class="k">${esc(T('Gold'))}</div><div class="v" style="font-size:14px">${money(r.gold)}</div></div>
+<div class="kpi"><div class="k">${esc(T('Levels'))} · ${esc(T('Deaths'))}</div><div class="v">+${r.levels} <span class="muted">·</span> <span class="${r.deaths ? 'red' : 'green'}">${r.deaths}</span></div></div></div>
+<div class="hint">${esc(T('planned %s, delivered %s', mins(r.planned), mins(r.delivered)))} (${Math.round(r.delivered / r.planned * 100)}%)${r.quests ? ' · ' + esc(T('%d quests done', r.quests)) : ''}</div>
+<div class="sec">${esc(T('Time split'))}</div><div class="split" role="img" aria-label="${esc(T('walking %d%% · combat %d%% · idle %d%%', r.split[1], r.split[0], r.split[2]))}"><i style="width:${r.split[0]}%;background:#e05050"></i><i style="width:${r.split[1]}%;background:#c9a227"></i><i style="width:${r.split[2]}%;background:#4b5462"></i></div>
+<div class="hint"><span style="color:#e05050">&#9632;</span> ${esc(T('Combat'))} ${r.split[0]}% &nbsp; <span style="color:#c9a227">&#9632;</span> ${esc(T('Walking'))} ${r.split[1]}% &nbsp; <span style="color:#7b8594">&#9632;</span> ${esc(T('Downtime'))} ${r.split[2]}%</div>
+<div class="sec">${esc(T('Velocity'))}</div><div class="hint">${esc(T('Velocity: delivered estimated minutes per hour played (last %d sprints)', h6.length))}</div>${velSvg(h6)}
+<div class="note grn" style="margin-top:6px"><b>${esc(T('Next sprint suggestion'))}</b>: ${esc(T('plan about %s.', mins(sugg)))} ${esc(T('Your sprints usually deliver %d%% of what was planned.', ratio))}</div>
+<div class="box"><h4>${esc(T('Lifetime (imported)'))}</h4><dl class="kv"><dt>${esc(T('Completed quests'))}</dt><dd>${num(186 + S.tickets.filter(x => x.status === 'done').length)}</dd><dt>${esc(T('Played time'))}</dt><dd>${LANG === 'nl' ? '1d 19u' : '1d 19h'}</dd><dt>${esc(T('Creatures killed'))}</dt><dd>${num(3412 + S.sprint.kills)}</dd><dt>${esc(T('Deaths'))}</dt><dd>${38 + S.sprint.deaths}</dd><dt>${esc(T('Gold looted'))}</dt><dd>${money(312345)}</dd></dl><div class="hint" style="margin-top:4px">${esc(T('Imported: completed quests, played time, lifetime statistics. Not importable: old fight times and drop rates, which start at the defaults.'))}</div></div></div>`;
+  $('#rBody').innerHTML = h;
+}
+function velSvg(h6) {
+  const w = 540, hh = 110, B = 16, mx = Math.max(...h6.map(r => Math.max(r.planned, r.delivered / r.played * 60))) * 1.1, bw = (w - 30) / h6.length;
+  let s = `<svg class="vel" width="100%" viewBox="0 0 ${w} ${hh}" role="img" aria-label="${esc(T('Velocity'))}"><path d="M24 4V${hh - B}H${w}" stroke="#2a303a" fill="none"/>`;
+  h6.forEach((r, i) => {
+    const v = r.delivered / r.played * 60, x = 30 + i * bw, bh = v / mx * (hh - B - 8), ph = r.planned / mx * (hh - B - 8);
+    s += `<rect x="${x + bw * 0.2}" y="${hh - B - ph}" width="${bw * 0.6}" height="${ph}" fill="none" stroke="#3a4250" stroke-dasharray="3 2"/>`;
+    s += `<rect x="${x + bw * 0.28}" y="${hh - B - bh}" width="${bw * 0.44}" height="${bh}" fill="${i === h6.length - 1 ? '#3fc7eb' : '#2b7f97'}"><title>${esc(T('Sprint %d', r.n))}: ${Math.round(v)} min/h</title></rect>`;
+    s += `<text x="${x + bw / 2}" y="${hh - 4}" text-anchor="middle">S${r.n}</text><text x="${x + bw / 2}" y="${hh - B - bh - 3}" text-anchor="middle" fill="#cfd5dc">${Math.round(v)}</text>`;
+  });
+  return s + `<text x="20" y="10" text-anchor="end">${Math.round(mx)}</text></svg><div class="hint"><span class="acc">&#9632;</span> ${esc(T('delivered min/h'))} &nbsp; <span class="muted">&#9633;</span> ${esc(T('planned min'))}</div>`;
+}
+
+// ---------- settings ----------
+function renderSettings() {
+  $('#sTitle').textContent = T('Settings');
+  const sel = (k, opts) => `<select data-set="${k}" id="set-${k}">${opts.map(([v, l]) => `<option value="${v}"${String(S.set[k]) === String(v) ? ' selected' : ''}>${esc(T(l))}</option>`).join('')}</select>`;
+  const chk = k => `<input type="checkbox" data-set="${k}" id="set-${k}"${S.set[k] ? ' checked' : ''}>`;
+  const row = (k, l, ctl, sub) => `<div class="srow2"><label class="sl" for="set-${k}">${esc(T(l))}${sub ? `<small>${esc(T(sub))}</small>` : ''}</label><div class="ctl">${ctl}</div></div>`;
+  $('#sBody').innerHTML = `<div class="set"><div class="hint">${esc(T('Settings of the Scrum of Azeroth add-on. All options: /soa config.'))}</div>
+<div class="sethd">${esc(T('Board'))}</div>
+${row('view', 'Board mode', sel('view', [['kanban', 'Kanban'], ['scrum', 'Scrum'], ['list', 'List']]))}
+${row('holdCol', 'Show an On hold column', chk('holdCol'), 'Otherwise on-hold cards are listed at the bottom of To do (Kanban) or the backlog (Scrum).')}
+${row('combo', 'Group shared quests (combo card)', chk('combo'), 'Quests that share mobs become one card.')}
+<div class="sethd">${esc(T('Tracker'))}</div>
+${row('tmode', 'Tracker content', sel('tmode', [['log', 'All quests in your log'], ['sprint', 'Current sprint only'], ['titles', 'Titles only']]))}
+${row('scale', 'Scale', `<input type="range" data-set="scale" id="set-scale" min="70" max="130" step="5" value="${S.set.scale}"><span id="setScaleV" style="width:36px;text-align:right">${S.set.scale}%</span>`)}
+${row('sort', 'Sort', sel('sort', sortList().map(k => [k, SORT_LABEL[k]])))}
+<div class="sethd">${esc(T('Sprint'))}</div>
+${row('weight', 'Priority weighting', sel('weight', [['balanced', 'Balanced'], ['xp', 'XP per minute'], ['story', 'Story first (chains)']]))}
+${row('cap', 'Sprint capacity', `<input type="number" data-set="cap" id="set-cap" min="15" max="240" step="5" value="${S.set.cap}"><span>min</span>`)}
+${row('review', 'Show the sprint review when a sprint ends', chk('review'))}
+<div class="sethd">${esc(T('General'))}</div>
+${row('toasts', 'Toasts', chk('toasts'), 'Short messages for status changes.')}
+${row('lang', 'Language', `<select data-set="lang" id="set-lang"><option value="en"${LANG === 'en' ? ' selected' : ''}>English</option><option value="nl"${LANG === 'nl' ? ' selected' : ''}>Nederlands</option></select>`)}
+<div class="sethd">${esc(T('Data'))}</div>
+<div class="acts"><button class="btn" data-act="resetest">${esc(T('Reset learned estimates'))}</button><button class="btn" data-act="reimport">${esc(T('Re-import history'))}</button></div>
+<div class="hint" style="margin-top:6px">${esc(T('Imported once per character: completed quests, played time, lifetime statistics. Fight times and drop rates are learned while you play.'))}</div></div>`;
+}
+
+// ---------- simulate panel (demo control, not part of the add-on) ----------
+function renderSim() {
+  $('#mTitle').textContent = T('Simulate (demo control)');
+  const b = (v, l, t) => `<button class="btn" data-act="sim" data-v="${v}" id="sim-${v}" title="${esc(T(t))}">${esc(T(l))}</button>`;
+  $('#mBody').innerHTML = `<div class="sim"><div class="tag">${esc(T('Not part of the add-on: these buttons stand in for playing the game.'))}</div>
+<div class="grid">${b('defias', 'Kill Defias', 'Counts for the militia; 40% chance of a bandana')}${b('goretusk', 'Kill Goretusk', 'Snouts for the stew, livers for the pie')}${b('vial', 'Loot vial water', 'Same as using the demo vial')}${b('level', 'Level up', 'Unblocks quests that were too high')}${b('group', S.group ? 'Leave group' : 'Join group', 'On-hold group quests become ready to resume')}${b('turnin', 'Turn in ready quests', 'Ready → Done, unlocks the next step')}</div>
+<div style="margin-top:4px">${b('advance', 'Advance 10 min', 'Moves the clock and the burndown')}</div>
+<div class="tg"><label><input type="checkbox" data-act="ck" id="tgCK"${S.ck ? ' checked' : ''}> ${esc(T('CasterKit installed'))}</label><label><input type="checkbox" data-act="roa" id="tgRoA"${S.roa ? ' checked' : ''}> ${esc(T('Roads of Azeroth installed'))}</label></div>
+<div class="st"><span>${esc(T('Level %d', S.level))} · ${num(S.xp)} / ${num(S.xpMax)} XP</span><span>${S.group ? esc(T('In a group')) : esc(T('Solo'))} · ${clockStr(S.clock)}</span></div><div class="xpbar"><i style="width:${S.xp / S.xpMax * 100}%"></i></div></div>`;
+}
+
+function applyStatic() {
+  document.documentElement.lang = LANG;
+  document.title = T('Scrum of Azeroth — interactive demo');
+  $$('[data-t]').forEach(el => { el.textContent = T(el.dataset.t); });
+  $('#lEN').setAttribute('aria-pressed', LANG === 'en'); $('#lNL').setAttribute('aria-pressed', LANG === 'nl');
+  $('#bLayout').title = T('Restore the default window positions'); $('#bReset').title = T('Start the demo again from the beginning');
+  $$('[data-act=close]').forEach(b => { b.innerHTML = I.close; b.setAttribute('aria-label', T('Close')); b.title = T('Close (Esc)'); });
+  $('#tGrip').title = T('Drag to resize');
+  $('#foot').innerHTML = `<b>${esc(T('Demo with example progress data.'))}</b> ${esc(T('Scrum of Azeroth is a World of Warcraft add-on by DinX. Not affiliated with or endorsed by Blizzard Entertainment.'))}<br>${esc(T('Quest names © Blizzard Entertainment; descriptions are summaries written for this demo.'))} ${esc(T('No game art is used: icons are simple drawings.'))} ${esc(T('Keys: Esc closes the top window, B toggles the board.'))}`;
+}
+const PTABS = [['tracker', 'Tracker'], ['board', 'Board'], ['flow', 'Flow'], ['review', 'Review'], ['settings', 'Settings'], ['sim', 'Simulate']];
+function renderTabs() {
+  $('#ptabs').innerHTML = PTABS.map(([k, l]) => `<button role="tab" aria-selected="${S.ui.ptab === k}" data-act="ptab" data-v="${k}">${esc(T(l))}</button>`).join('');
+  $$('.win').forEach(w => w.classList.toggle('ptab-on', w.id === 'w-' + S.ui.ptab));
+}
+function render() {
+  renderTracker(); renderSim();
+  if (S.open.board || PHONE) renderBoard();
+  if (S.open.flow || PHONE) renderFlow();
+  if (S.open.review || PHONE) renderReview();
+  if (S.open.settings || PHONE) renderSettings();
+  if (PHONE) renderTabs();
+}
+// ======================================================================
+// flow view: node graph with zoom, pan, fit and minimap
+// ======================================================================
+const F = { k: 1, x: 0, y: 0, nodes: [], edges: [], fitted: '' };
+function flowStatus(x) {
+  if (x.status === 'done') return 'done';
+  if (x.block || x.lvl >= S.level + 5 || (x.upcoming && x.after && Q(x.after).upcoming)) return 'locked';
+  if (x.hold) return 'hold';
+  if (active(x)) return 'current';
+  return 'upcoming';
+}
+function buildFlow() {
+  const e = S.ui.flowEpic, N = [], E = [];
+  const QW = 164, QH = 52, GX = 204, GY = 100;
+  if (e === 'init') {
+    EPIC_ORDER.forEach((id, i) => N.push({ kind: 'epic', id, x: (i % 3) * 270, y: Math.floor(i / 3) * 150, w: 220, h: 100 }));
+    E.push({ a: 'defias', b: 'militia', dash: true, side: false }, { a: 'militia', b: 'kitchen', dash: true, side: false });
+  } else {
+    const f = FLOWS[e];
+    if (f.main) {
+      f.main.forEach((id, i) => { N.push({ kind: 'q', id, x: i * GX, y: 0, w: QW, h: QH }); if (i) E.push({ a: f.main[i - 1], b: id }); });
+      for (const s of f.side) {
+        const from = N.find(n => n.id === s.from); if (!from) continue;
+        let x = from.y === 0 ? from.x : from.x + GX, y = from.y === 0 ? GY : from.y;
+        while (N.some(n => Math.abs(n.x - x) < 10 && Math.abs(n.y - y) < 10)) y += GY;
+        N.push({ kind: 'q', id: s.id, x, y, w: QW, h: QH });
+        E.push({ a: s.from, b: s.id, dash: !!s.learned, side: from.y === 0 });
+      }
+      if (f.dungeon) {
+        const from = N.find(n => n.id === f.dungeon.from);
+        N.push({ kind: 'dungeon', id: 'dungeon', x: from.x + GX, y: 0, w: 160, h: 54, d: f.dungeon });
+        E.push({ a: f.dungeon.from, b: 'dungeon', dun: true });
+        if (f.dungeon.side) { N.push({ kind: 'q', id: f.dungeon.side, x: from.x + GX, y: GY, w: QW, h: QH }); E.push({ a: f.dungeon.side, b: 'dungeon', dash: true, up: true }); }
+      }
+    } else f.free.forEach((id, i) => N.push({ kind: 'q', id, x: (i % 3) * GX, y: Math.floor(i / 3) * GY, w: QW, h: QH }));
+  }
+  F.nodes = N; F.edges = E;
+}
+const SCOL = { done: ['#122016', '#4fbf5a', '#7f8a96'], current: ['#10202a', '#3fc7eb', '#e6eaef'], upcoming: ['#121418', '#3a4250', '#8a93a0'], locked: ['#1a1012', '#e05050', '#8a7a7a'], hold: ['#1c170c', '#e8a33d', '#d8c9a8'] };
+function trunc(s, n) {
+  if (s.length <= n) return s;
+  if (s.startsWith('The ') && s.length - 4 <= n) return s.slice(4);
+  const m = s.match(/^(.*?)(\s\(\d+\))$/);
+  if (m) return m[1].replace(/^The /, '').slice(0, n - m[2].length - 1) + '…' + m[2];
+  return s.slice(0, n - 1) + '…';
+}
+function nodeSvg(n) {
+  if (n.kind === 'epic') {
+    const e = EPICS[n.id], all = S.tickets.filter(x => x.epic === n.id), dn = all.filter(x => x.status === 'done').length, cur = all.filter(active).length;
+    return `<g class="node" data-node="${n.id}" transform="translate(${n.x},${n.y})"><rect width="${n.w}" height="${n.h}" fill="#13161b" stroke="#000"/><rect width="5" height="${n.h}" fill="${e.color}"/><rect x="5" width="${n.w - 5}" height="24" fill="#181b21"/>
+<text x="14" y="16" fill="${e.color}" font-size="13" font-weight="600">${esc(trunc(epicName(n.id), 26))}</text>
+<text x="14" y="44" fill="#cfd5dc" font-size="11">${esc(T('%d of %d steps done', dn, all.length))}</text><text x="14" y="60" fill="#8a93a0" font-size="11">${esc(T('%d active', cur))}</text>
+<rect x="14" y="72" width="${n.w - 28}" height="6" fill="#1d2128" stroke="#000"/><rect x="14" y="72" width="${(n.w - 28) * dn / all.length}" height="6" fill="#4fbf5a"/>
+<text x="${n.w - 10}" y="92" text-anchor="end" fill="#3fc7eb" font-size="10">${esc(T('click to zoom in'))} ›</text></g>`;
+  }
+  if (n.kind === 'dungeon') {
+    const w = n.w, h = n.h, p = `12,0 ${w - 12},0 ${w},${h / 2} ${w - 12},${h} 12,${h} 0,${h / 2}`;
+    return `<g class="node" data-node="dungeon" transform="translate(${n.x},${n.y - 2})"><polygon points="${p}" fill="#170f1e" stroke="#a07ce0" stroke-width="1.5"/><text x="${w / 2}" y="22" text-anchor="middle" fill="#d6c4f5" font-size="12" font-weight="600">${esc(n.d.name)}</text><text x="${w / 2}" y="38" text-anchor="middle" fill="#8a93a0" font-size="10">${esc(X(n.d.sub))}</text></g>`;
+  }
+  const x = Q(n.id), st = flowStatus(x), [bg, bd, tx] = SCOL[st], e = EPICS[x.epic], sel = S.ui.sel === x.id;
+  const mark = st === 'done' ? '✓' : st === 'current' ? '●' : st === 'locked' ? '×' : st === 'hold' ? '||' : '○';
+  const sub = (st === 'done' ? T('Done') : st === 'locked' ? (x.block ? T('Blocked') : T('Locked')) : stLabel(x)) + ' · [' + x.lvl + ']' + (st !== 'done' ? ' · ~' + mins(remEst(x)) : '');
+  return `<g class="node" data-node="${x.id}" transform="translate(${n.x},${n.y})"><rect width="${n.w}" height="${n.h}" fill="${bg}" stroke="${sel ? '#ffd100' : bd}" stroke-width="${st === 'current' || sel ? 2 : 1}" ${st === 'locked' ? 'stroke-dasharray="4 3"' : ''}/><rect x="1" y="1" width="3" height="${n.h - 2}" fill="${e.color}"/>
+<text x="12" y="20" fill="${st === 'done' ? '#7f8a96' : lvlColor(x.lvl)}" font-size="12.5" font-weight="600">${esc(trunc(title(x), 22))}</text>
+<text x="12" y="39" fill="${tx}" font-size="11">${esc(trunc(sub, 30))}</text><text x="${n.w - 8}" y="19" text-anchor="end" fill="${bd}" font-size="11">${mark}</text></g>`;
+}
+function edgeSvg(ed) {
+  const a = F.nodes.find(n => n.id === ed.a), b = F.nodes.find(n => n.id === ed.b); if (!a || !b) return '';
+  let d;
+  if (ed.up) d = `M${a.x + a.w / 2} ${a.y}V${b.y + b.h + 4}`;
+  else if (ed.side) d = `M${a.x + 30} ${a.y + a.h}V${b.y - 6}`;
+  else if (a.y !== b.y) d = `M${a.x + a.w} ${a.y + a.h / 2}C${a.x + a.w + 30} ${a.y + a.h / 2} ${b.x - 30} ${b.y + b.h / 2} ${b.x - 6} ${b.y + b.h / 2}`;
+  else d = `M${a.x + a.w} ${a.y + a.h / 2}H${b.x - 6}`;
+  if (ed.side && a.x !== b.x) d = `M${a.x + 30} ${a.y + a.h}V${b.y + b.h / 2}H${b.x - 6}`;
+  const col = ed.dun ? '#a07ce0' : ed.dash ? '#3fc7eb' : '#58616e';
+  return `<path d="${d}" fill="none" stroke="${col}" stroke-width="1.5" ${ed.dash ? 'stroke-dasharray="5 4"' : ''} marker-end="url(#${ed.dash ? 'arrd' : 'arr'})"/>`;
+}
+function flowBounds() {
+  const xs = F.nodes.map(n => n.x), ys = F.nodes.map(n => n.y);
+  return { x0: Math.min(...xs) - 30, y0: Math.min(...ys) - 30, x1: Math.max(...F.nodes.map(n => n.x + n.w)) + 30, y1: Math.max(...F.nodes.map(n => n.y + n.h)) + 30 };
+}
+function renderFlow() {
+  $('#fTitle').textContent = T('Flow');
+  const e = S.ui.flowEpic;
+  $('#fTool').innerHTML = `<label class="hint" for="fEpic">${esc(T('Show'))}</label><select id="fEpic">${[['init', T('Initiative: %s', X(INIT.name))], ...EPIC_ORDER.map(k => [k, T('Epic: %s', epicName(k))])].map(([v, l]) => `<option value="${v}"${v === e ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>${e !== 'init' ? `<button class="btn" data-act="flowup">‹ ${esc(T('Initiative'))}</button>` : ''}<button class="btn" data-act="flowfit" id="fFit">${esc(T('Fit'))}</button><span class="sp"></span>
+<span class="legend"><span><i style="border-color:#4fbf5a;background:#122016"></i>${esc(T('Done'))}</span><span><i style="border-color:#3fc7eb;background:#10202a"></i>${esc(T('Current'))}</span><span><i style="border-color:#3a4250"></i>${esc(T('Upcoming'))}</span><span><i style="border-color:#e05050;border-style:dashed"></i>${esc(T('Locked'))}</span><span><i style="border:0;border-top:1px dashed #3fc7eb;height:0"></i>${esc(T('learned'))}</span></span>`;
+  buildFlow();
+  $('#fvp').innerHTML = F.edges.map(edgeSvg).join('') + F.nodes.map(nodeSvg).join('');
+  const key = e + (PHONE ? 'p' : '');
+  if (F.fitted !== key) { F.fitted = key; requestAnimationFrame(() => { fitFlow(); focusCurrent(); }); } else applyFlow();
+}
+function fitFlow() {
+  const svg = $('#fsvg'), W = svg.clientWidth, H = svg.clientHeight; if (!W || !H) return;
+  const b = flowBounds();
+  F.k = clamp(Math.min(W / (b.x1 - b.x0), H / (b.y1 - b.y0)), 0.3, 1.4);
+  F.x = (W - (b.x1 - b.x0) * F.k) / 2 - b.x0 * F.k; F.y = (H - (b.y1 - b.y0) * F.k) / 2 - b.y0 * F.k;
+  applyFlow();
+}
+function focusCurrent() {
+  if (F.k >= 0.8) return;
+  const svg = $('#fsvg'), W = svg.clientWidth, H = svg.clientHeight, b = flowBounds();
+  const cur = F.nodes.find(n => n.kind === 'q' && n.y === 0 && ['current', 'hold'].includes(flowStatus(Q(n.id)))) || F.nodes[0];
+  F.k = 0.85;
+  F.x = clamp(W * 0.4 - (cur.x + cur.w / 2) * F.k, W - b.x1 * F.k, -b.x0 * F.k);
+  F.y = (H - (b.y1 - b.y0) * F.k) / 2 - b.y0 * F.k;
+  applyFlow();
+}
+function applyFlow() {
+  $('#fvp').setAttribute('transform', `translate(${F.x.toFixed(1)},${F.y.toFixed(1)}) scale(${F.k.toFixed(3)})`);
+  $('#fzoom').textContent = Math.round(F.k * 100) + '%';
+  // minimap
+  const svg = $('#fsvg'), W = svg.clientWidth, H = svg.clientHeight, b = flowBounds();
+  const bw = b.x1 - b.x0, bh = b.y1 - b.y0, s = Math.min(150 / bw, 96 / bh), ox = (150 - bw * s) / 2, oy = (96 - bh * s) / 2;
+  F.mini = { s, ox, oy, b };
+  const r = n => `<rect x="${(ox + (n.x - b.x0) * s).toFixed(1)}" y="${(oy + (n.y - b.y0) * s).toFixed(1)}" width="${(n.w * s).toFixed(1)}" height="${(n.h * s).toFixed(1)}" fill="${n.kind === 'q' ? SCOL[flowStatus(Q(n.id))][1] : n.kind === 'epic' ? EPICS[n.id].color : '#a07ce0'}" opacity=".8"/>`;
+  const vx = -F.x / F.k, vy = -F.y / F.k, vw = W / F.k, vh = H / F.k;
+  $('#fmini').innerHTML = F.nodes.map(r).join('') + `<rect id="fview" x="${(ox + (vx - b.x0) * s).toFixed(1)}" y="${(oy + (vy - b.y0) * s).toFixed(1)}" width="${(vw * s).toFixed(1)}" height="${(vh * s).toFixed(1)}" fill="rgba(63,199,235,.08)" stroke="#ffd100" stroke-width="1"/>`;
+}
+function zoomAt(px, py, f) {
+  const k = clamp(F.k * f, 0.25, 3); f = k / F.k;
+  F.x = px - (px - F.x) * f; F.y = py - (py - F.y) * f; F.k = k; applyFlow();
+}
+function flowClick(id) {
+  if (S.ui.flowEpic === 'init') { S.ui.flowEpic = id; renderFlow(); return; }
+  if (id === 'dungeon') { toast(T('Dungeon: %s (group content)', FLOWS[S.ui.flowEpic].dungeon.name), '#a07ce0'); return; }
+  select(id);
+  if (!PHONE) focusWin('flow'); // keep the graph on top; the board behind shows the details
+}
+function initFlowInput() {
+  const svg = $('#fsvg'), P = new Map(); let start = null, moved = false, pinch = null, node = null;
+  svg.addEventListener('wheel', e => { e.preventDefault(); const r = svg.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+  svg.addEventListener('pointerdown', e => {
+    try { svg.setPointerCapture(e.pointerId); } catch (_) { /* synthetic events */ } P.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (P.size === 1) { start = { x: e.clientX, y: e.clientY, fx: F.x, fy: F.y }; moved = false; const g = e.target.closest('[data-node]'); node = g ? g.dataset.node : null; }
+    if (P.size === 2) { const [a, b] = [...P.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k: F.k }; moved = true; }
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!P.has(e.pointerId)) return; P.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const r = svg.getBoundingClientRect();
+    if (P.size === 2 && pinch) { const [a, b] = [...P.values()], d = Math.hypot(a.x - b.x, a.y - b.y); zoomAt((a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, pinch.k * d / pinch.d / F.k); return; }
+    if (!start) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (!moved && Math.hypot(dx, dy) > 4) { moved = true; svg.classList.add('drag'); }
+    if (moved) { F.x = start.fx + dx; F.y = start.fy + dy; applyFlow(); }
+  });
+  const up = e => {
+    P.delete(e.pointerId); svg.classList.remove('drag');
+    if (P.size < 2) pinch = null;
+    if (!P.size) { if (!moved && node) flowClick(node); start = null; node = null; }
+    else { const [a] = [...P.values()]; start = { x: a.x, y: a.y, fx: F.x, fy: F.y }; }
+  };
+  svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+  $('#fmini').addEventListener('click', e => {
+    const m = F.mini, r = e.currentTarget.getBoundingClientRect(), wx = m.b.x0 + (e.clientX - r.left - m.ox) / m.s, wy = m.b.y0 + (e.clientY - r.top - m.oy) / m.s;
+    F.x = svg.clientWidth / 2 - wx * F.k; F.y = svg.clientHeight / 2 - wy * F.k; applyFlow();
+  });
+}
+
+// ======================================================================
+// windows: open/close, z-order, drag, tracker resize, layout, phone tabs
+// ======================================================================
+let PHONE = false;
+const POS = {};
+const W_ = id => $('#w-' + id);
+function defaultLayout() {
+  const desk = $('#desk'), Wd = desk.clientWidth, H = Math.max(window.innerHeight - 90, 600);
+  const tw = 290, right = Wd - tw - 10;
+  POS.tracker = { l: right, t: 10, w: tw, h: Math.round(clamp(H * 0.56, 300, 460)) };
+  POS.sim = { l: right, t: POS.tracker.t + POS.tracker.h + 10, w: tw };
+  POS.board = { l: 10, t: 10, w: Math.round(clamp(right - 20, 560, 1240)), h: Math.round(clamp(H - 20, 420, 760)) };
+  POS.flow = { l: Math.max(10, Math.round(right / 2 - 420)), t: 70, w: Math.min(840, right - 20), h: Math.min(520, H - 90) };
+  POS.review = { l: Math.max(10, Math.round(right / 2 - 300)), t: 40, w: 600, h: Math.min(620, H - 50) };
+  POS.settings = { l: Math.max(10, right - 420), t: 30, w: 400, h: Math.min(600, H - 40) };
+  for (const id in POS) place(id);
+  deskHeight();
+}
+function place(id) {
+  const p = POS[id], el = W_(id); if (!p || !el) return;
+  el.style.left = p.l + 'px'; el.style.top = p.t + 'px'; el.style.width = p.w + 'px';
+  el.style.height = p.h ? p.h + 'px' : 'auto';
+}
+function deskHeight() {
+  if (PHONE) { $('#desk').style.height = ''; return; }
+  let mx = window.innerHeight - 80;
+  $$('.win.open').forEach(w => { mx = Math.max(mx, w.offsetTop + w.offsetHeight + 12); });
+  $('#desk').style.height = mx + 'px';
+}
+function focusWin(id) {
+  const el = W_(id); el.style.zIndex = ++S.z;
+  $$('.win').forEach(w => w.classList.toggle('top', w === el));
+}
+function openWin(id) {
+  S.open[id] = true; W_(id).classList.add('open'); focusWin(id);
+  if (PHONE) { S.ui.ptab = id; renderTabs(); window.scrollTo(0, 0); }
+  ({ board: renderBoard, flow: renderFlow, review: renderReview, settings: renderSettings }[id] || (() => { }))();
+  deskHeight();
+}
+function closeWin(id) {
+  if (id === 'tracker' || id === 'sim') return;
+  S.open[id] = false; W_(id).classList.remove('open');
+  if (PHONE && S.ui.ptab === id) { S.ui.ptab = id === 'board' ? 'tracker' : 'board'; if (S.ui.ptab === 'board') openWin('board'); renderTabs(); }
+  deskHeight();
+}
+const toggleWin = id => S.open[id] && (!PHONE || S.ui.ptab === id) ? closeWin(id) : openWin(id);
+function topWin() {
+  let best = null, z = -1;
+  for (const id of ['board', 'flow', 'review', 'settings']) if (S.open[id]) { const zz = +W_(id).style.zIndex || 0; if (zz > z) { z = zz; best = id; } }
+  if (PHONE) return ['board', 'flow', 'review', 'settings'].includes(S.ui.ptab) ? S.ui.ptab : null;
+  return best;
+}
+function initDrag() {
+  $$('.win').forEach(el => {
+    const id = el.id.slice(2);
+    el.addEventListener('pointerdown', () => { if (!PHONE) focusWin(id); }, true);
+    const head = el.querySelector('.wh');
+    head.addEventListener('pointerdown', e => {
+      if (PHONE || e.button !== 0 || e.target.closest('button,select,input,label')) return;
+      e.preventDefault(); head.setPointerCapture(e.pointerId);
+      const sx = e.clientX, sy = e.clientY, l0 = el.offsetLeft, t0 = el.offsetTop, dw = $('#desk').clientWidth;
+      const mv = ev => {
+        const l = clamp(l0 + ev.clientX - sx, 60 - el.offsetWidth, dw - 60), t = clamp(t0 + ev.clientY - sy, 0, 5000);
+        el.style.left = l + 'px'; el.style.top = t + 'px';
+      };
+      const upf = () => { head.removeEventListener('pointermove', mv); head.removeEventListener('pointerup', upf); POS[id] = Object.assign(POS[id] || {}, { l: el.offsetLeft, t: el.offsetTop }); deskHeight(); };
+      head.addEventListener('pointermove', mv); head.addEventListener('pointerup', upf);
+    });
+  });
+  // tracker resize grip
+  const g = $('#tGrip'), tr = $('#w-tracker');
+  g.addEventListener('pointerdown', e => {
+    if (PHONE) return; e.preventDefault(); e.stopPropagation(); g.setPointerCapture(e.pointerId);
+    const sx = e.clientX, sy = e.clientY, w0 = tr.offsetWidth, h0 = tr.offsetHeight;
+    const mv = ev => { tr.style.width = clamp(w0 + ev.clientX - sx, 220, 640) + 'px'; tr.style.height = clamp(h0 + ev.clientY - sy, 140, 1200) + 'px'; };
+    const upf = () => { g.removeEventListener('pointermove', mv); g.removeEventListener('pointerup', upf); POS.tracker.w = tr.offsetWidth; POS.tracker.h = tr.offsetHeight; deskHeight(); };
+    g.addEventListener('pointermove', mv); g.addEventListener('pointerup', upf);
+  });
+}
+function checkPhone() {
+  const was = PHONE; PHONE = window.innerWidth < 760;
+  document.body.classList.toggle('phone', PHONE);
+  if (PHONE !== was) {
+    if (PHONE) { renderTabs(); } else { $$('.win').forEach(w => { w.classList.remove('ptab-on'); w.classList.toggle('open', !!S.open[w.id.slice(2)]); }); defaultLayout(); }
+    F.fitted = ''; render();
+  }
+  if (PHONE) $$('.win').forEach(w => w.classList.add('open'));
+}
+
+// ======================================================================
+// toasts, context menu, tooltip, dialog
+// ======================================================================
+function toast(html, color) {
+  if (!S.set.toasts) return;
+  const box = $('#toasts'), t = document.createElement('div');
+  t.className = 'toast'; t.style.setProperty('--tc', color || 'var(--acc)'); t.innerHTML = html;
+  box.prepend(t);
+  while (box.children.length > 4) box.lastChild.remove();
+  setTimeout(() => t.remove(), 3600);
+}
+let MENU = [];
+function showMenu(head, items, cx, cy) {
+  const m = $('#ctx'); MENU = items;
+  m.innerHTML = `<div class="mh">${esc(head)}</div>` + items.map((it, i) => it === '-' ? '<hr>' : `<button role="menuitem" data-i="${i}" class="${it.cur ? 'cur' : ''}"${it.dis ? ' disabled style="opacity:.45"' : ''}>${it.icon || ''}<span>${esc(it.l)}</span>${it.sub ? '<span class="ar">›</span>' : ''}</button>`).join('');
+  m.classList.add('open');
+  const r = m.getBoundingClientRect();
+  m.style.left = clamp(cx, 4, window.innerWidth - r.width - 4) + 'px'; m.style.top = clamp(cy, 4, window.innerHeight - r.height - 4) + 'px';
+  const f = m.querySelector('button:not([disabled])'); if (f) f.focus();
+  m._pos = [cx, cy];
+}
+const hideMenu = () => $('#ctx').classList.remove('open');
+function ticketMenu(x, cx, cy) {
+  const head = title(x), back = () => ticketMenu(x, cx, cy), pi = prioInfo(x);
+  const prioSub = () => showMenu(T('Priority…'), [{ l: T('Automatic'), cur: x.manual == null, fn: () => { x.manual = null; toast(T('Priority: %s', T('Automatic')) + ' · <b>' + esc(title(x)) + '</b>'); render(); } }, '-',
+    ...[4, 3, 2, 1, 0].map(p => ({ l: T(PRIO[p]), icon: chev(p, 12), cur: x.manual === p, fn: () => { x.manual = p; toast(T('Priority: %s', T(PRIO[p])) + ' · <b>' + esc(title(x)) + '</b>'); render(); } })), '-', { l: '‹ ' + T('Back'), fn: back, keep: 1 }], cx, cy);
+  const holdSub = () => showMenu(T('Put on hold…'), [...Object.keys(HOLD_WHY).map(k => ({ l: T(HOLD_WHY[k]), fn: () => putOnHold(x, k) })), '-', { l: '‹ ' + T('Back'), fn: back, keep: 1 }], cx, cy);
+  const moveSub = () => showMenu(T('Move to…'), [...STAT.map(s => ({ l: T(STAT_LABEL[s]), cur: x.status === s && !x.hold, fn: () => moveTo(x, s) })), '-', { l: '‹ ' + T('Back'), fn: back, keep: 1 }], cx, cy);
+  const items = [
+    { l: T('Priority…') + ' (' + T(PRIO[pi.p]) + ')', sub: 1, keep: 1, fn: prioSub },
+    x.hold ? { l: T('Resume'), fn: () => resume(x) } : { l: T('Put on hold…'), sub: 1, keep: 1, fn: holdSub, dis: x.status === 'done' || x.upcoming },
+    { l: T('Move to…'), sub: 1, keep: 1, fn: moveSub, dis: x.upcoming },
+    x.sprint ? { l: T('Back to backlog'), fn: () => toBacklog(x), dis: x.status === 'done' } : { l: T('+ Add to sprint'), fn: () => addToSprint(x), dis: x.upcoming || x.status === 'done' },
+    '-', { l: T('Details'), fn: () => select(x.id) },
+  ];
+  showMenu(head, items, cx, cy);
+}
+function fightMenu(x, idx, cx, cy) {
+  const h = x.hist[idx], others = S.tickets.filter(y => y !== x && active(y));
+  const back = () => fightMenu(x, idx, cx, cy);
+  showMenu(T('Fight: %s', h.a.mob), [
+    { l: T('Move to…'), sub: 1, keep: 1, fn: () => showMenu(T('Move to…'), [...others.map(y => ({ l: title(y), fn: () => { x.hist.splice(idx, 1); const i = x.fights.indexOf(h.a); if (i >= 0) x.fights.splice(i, 1); y.fights.push(h.a); y.hist.push({ at: h.at, type: 'fight', a: h.a }); y.hist.push({ at: h.at, type: 'moved', a: { from: title(x) } }); toast(T('Fight moved to %s', '<b>' + esc(title(y)) + '</b>'), '#a07ce0'); render(); } })), '-', { l: '‹ ' + T('Back'), fn: back, keep: 1 }], cx, cy) },
+    { l: T('Split…'), sub: 1, keep: 1, fn: () => showMenu(T('Split…'), [...others.map(y => ({ l: title(y), fn: () => { h.a.split = true; h.a.share = (h.a.share || 1) + 1; if (!y.fights.includes(h.a)) { y.fights.push(h.a); y.hist.push({ at: h.at, type: 'fight', a: h.a }); } toast(T('Fight split between %s and %s', '<b>' + esc(title(x)) + '</b>', '<b>' + esc(title(y)) + '</b>'), '#a07ce0'); render(); } })), '-', { l: '‹ ' + T('Back'), fn: back, keep: 1 }], cx, cy) },
+  ], cx, cy);
+}
+function showTip(el) {
+  const tip = $('#tip'); tip.innerHTML = el.dataset.tiph; tip.style.display = 'block';
+  const r = el.getBoundingClientRect(), t = tip.getBoundingClientRect();
+  tip.style.left = clamp(r.right + 6, 4, window.innerWidth - t.width - 4) + 'px';
+  tip.style.top = clamp(r.top, 4, window.innerHeight - t.height - 4) + 'px';
+}
+const hideTip = () => { $('#tip').style.display = 'none'; };
+function ticketDialog() {
+  const d = $('#dlg');
+  d.innerHTML = `<div class="wh" style="cursor:default"><span class="wt" id="dlgT">${esc(T('New ticket'))}</span><button class="btn ib" data-act="dlgclose" aria-label="${esc(T('Close'))}">${I.close}</button></div>
+<div class="f"><div class="hint">${esc(T('A task that is not a quest, e.g. train spells or farm cloth.'))}</div>
+<label>${esc(T('Title'))}<input type="text" id="nkTitle" maxlength="60"></label>
+<label>${esc(T('Label / epic'))}<select id="nkEpic">${EPIC_ORDER.map(e => `<option value="${e}"${e === 'chores' ? ' selected' : ''}>${esc(epicName(e))}</option>`).join('')}</select></label>
+<label>${esc(T('Estimate (minutes)'))}<input type="number" id="nkEst" min="1" max="240" value="5"></label>
+<label>${esc(T('Item objective (e.g. 20 Linen Cloth)'))}<input type="text" id="nkItem" placeholder="20 Linen Cloth"></label>
+<label>${esc(T('Checklist (one step per line)'))}<textarea id="nkSteps"></textarea></label><div class="err" id="nkErr" role="alert"></div></div>
+<div class="ft"><button class="btn" data-act="dlgclose">${esc(T('Cancel'))}</button><button class="btn pri" data-act="dlgsave">${esc(T('Save'))}</button></div>`;
+  $('#dlgbg').classList.add('open'); $('#nkTitle').focus();
+}
+function saveTicket() {
+  const tt = $('#nkTitle').value.trim();
+  if (!tt) { $('#nkErr').textContent = T('A ticket needs a title.'); $('#nkTitle').focus(); return; }
+  const objs = [], m = $('#nkItem').value.trim().match(/^(\d+)\s+(.+)$/);
+  if (m) objs.push({ t: { en: m[2], nl: m[2] }, have: 0, need: +m[1], item: 1 });
+  $('#nkSteps').value.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => objs.push({ t: { en: s, nl: s }, have: 0, need: 1, step: 1 }));
+  const id = 'c' + Date.now().toString(36);
+  const x = { id, kind: 'custom', t: tt, epic: $('#nkEpic').value, lvl: S.level, zone: Z.wf, status: 'todo', inLog: true, sprint: false, hold: null, block: null, manual: 2, objs, shared: [], hist: [], fights: [], spread: 0.3, upcoming: false, after: null, money: 0, choose: [], get: [], group: false, kills: 0, drops: 0, spent: 0, down: 0, order: 99, x: 30, y: 30, xp: 0, est: clamp(+$('#nkEst').value || 5, 1, 240), giver: { en: 'Custom ticket', nl: 'Eigen ticket' }, turnin: { en: 'none', nl: 'geen' }, d: { en: 'Your own ticket.', nl: 'Je eigen ticket.' } };
+  S.tickets.push(x); S.byId[id] = x; addHist(x, 'accepted');
+  $('#dlgbg').classList.remove('open');
+  toast(T('Ticket created: %s', '<b>' + esc(tt) + '</b>'), '#45b5a6');
+  select(id);
+}
+
+// ======================================================================
+// actions + events
+// ======================================================================
+function select(id) {
+  S.ui.sel = id;
+  if (!S.open.board || (PHONE && S.ui.ptab !== 'board')) openWin('board'); else focusWin('board');
+  render();
+  if (PHONE) { const d = $('#bDetail'); if (d) d.scrollIntoView({ block: 'start' }); }
+}
+function setLang(v) { LANG = v; S.lang = v; applyStatic(); render(); }
+const ACT = {
+  layout() { if (PHONE) return; defaultLayout(); toast(T('Windows back in their default places.')); },
+  lang(el) { setLang(el.dataset.v); },
+  reset() { const l = LANG; hideMenu(); initState(l); LANG = l; $$('.win').forEach(w => w.classList.toggle('open', !!S.open[w.id.slice(2)] || PHONE)); F.fitted = ''; if (!PHONE) defaultLayout(); applyStatic(); S.ui.sel = 'band'; openWin('board'); if (PHONE) { S.ui.ptab = 'tracker'; renderTabs(); } render(); $('#toasts').innerHTML = ''; toast(T('Demo reset.')); },
+  toggle(el) { toggleWin(el.dataset.w); },
+  open(el) { openWin(el.dataset.w); },
+  close(el) { closeWin(el.dataset.w); },
+  tfold() { S.ui.trackerFolded = !S.ui.trackerFolded; renderTracker(); },
+  sel(el, e) { const x = Q(el.dataset.id); if (!x) return; if (e.shiftKey) { shiftClick(x); return; } select(x.id); },
+  menu(el, e) { e.stopPropagation(); const r = el.getBoundingClientRect(); ticketMenu(Q(el.dataset.id), r.left, r.bottom + 2); },
+  dclose() { S.ui.sel = null; render(); },
+  dtab(el) { S.ui.dtab = el.dataset.v; renderDetail(); const b = $('#dt-' + el.dataset.v); if (b) b.focus(); },
+  view(el) { S.set.view = el.dataset.v; S.ui.proposal = null; render(); const b = $('#vt-' + el.dataset.v); if (b) b.focus(); },
+  plan() { planSprint(); },
+  accept() { acceptProposal(); },
+  cancelprop() { S.ui.proposal = null; render(); },
+  newsprint() { newSprint(); },
+  add(el, e) { e.stopPropagation(); addToSprint(Q(el.dataset.id)); },
+  back(el, e) { e.stopPropagation(); toBacklog(Q(el.dataset.id)); },
+  bfold(el) { const g = el.dataset.g; S.ui.bfold[g] = !S.ui.bfold[g]; renderBoard(); },
+  tgfold(el) { const g = el.dataset.e; S.ui.tfold[g] = !S.ui.tfold[g]; renderTracker(); },
+  lsort(el) { const k = el.dataset.k; S.ui.lsort = { k, d: S.ui.lsort.k === k ? -S.ui.lsort.d : (k === 'quest' || k === 'epic' || k === 'status' || k === 'est' ? 1 : -1) }; renderBoard(); },
+  useitem(el, e) {
+    e.stopPropagation();
+    if (el.classList.contains('qitem')) { if (el.classList.contains('cd')) return; }
+    SIM.vial();
+    const b = $(`.qitem[data-id="${el.dataset.id}"]`); if (b) { b.classList.add('cd'); }
+  },
+  sim(el) { SIM[el.dataset.v](); },
+  tick(el) { const x = Q(el.dataset.id), i = +el.dataset.o; if (bump(x, i)) { afterProgress(x); after(); } },
+  resume(el) { resume(Q(el.dataset.id)); },
+  dact(el) {
+    const x = Q(el.dataset.id), v = el.dataset.v, r = el.getBoundingClientRect();
+    if (v === 'track') toast(T('Tracked: %s', '<b>' + esc(title(x)) + '</b>'), '#ffd100');
+    if (v === 'map') toast(T('World map opened at %s', esc(x.zone)), '#c9a227');
+    if (v === 'gps') shiftClick(x);
+    if (v === 'log') toast(T('Opened in the quest log: %s', '<b>' + esc(title(x)) + '</b>'), '#8a93a0');
+    if (v === 'hold') { ticketMenu(x, r.left, r.bottom + 2); MENU[1].fn(); }
+    if (v === 'move') { ticketMenu(x, r.left, r.bottom + 2); MENU[2].fn(); }
+  },
+  newticket() { ticketDialog(); },
+  dlgclose() { $('#dlgbg').classList.remove('open'); },
+  dlgsave() { saveTicket(); },
+  flowfit() { fitFlow(); },
+  flowup() { S.ui.flowEpic = 'init'; renderFlow(); },
+  ptab(el) { const v = el.dataset.v; S.ui.ptab = v; if (!['tracker', 'sim'].includes(v)) S.open[v] = true; renderTabs(); render(); window.scrollTo(0, 0); },
+  resetest() { for (const x of S.tickets) { x.spread = 0.32; x.kills = 0; x.drops = 0; } toast(T('Learned estimates reset: defaults are used again.')); render(); },
+  reimport() { toast(T('History imported: %s completed quests, %d statistics, played time requested.', num(186), 52)); },
+  ck(el) { S.ck = el.checked; toast(S.ck ? T('CasterKit loaded: the tracker shows “via CasterKit”.') : T('CasterKit removed.'), '#3fc7eb'); render(); },
+  roa(el) { S.roa = el.checked; toast(S.roa ? T('Roads of Azeroth loaded: smart route sorting and GPS stops.') : T('Roads of Azeroth removed.'), '#3fc7eb'); render(); },
+};
+function initEvents() {
+  document.addEventListener('click', e => {
+    const m = $('#ctx');
+    if (m.classList.contains('open')) {
+      const b = e.target.closest('#ctx button');
+      if (b) { const it = MENU[+b.dataset.i]; if (!it.keep) hideMenu(); it.fn(); return; }
+      if (!e.target.closest('#ctx')) hideMenu();
+    }
+    if (e.target.matches('input[type=checkbox][data-act]')) { ACT[e.target.dataset.act](e.target, e); return; }
+    const a = e.target.closest('[data-act]');
+    if (a && ACT[a.dataset.act] && !(a.disabled)) { if (a.tagName === 'INPUT') return; ACT[a.dataset.act](a, e); }
+    if (e.target.id === 'dlgbg') $('#dlgbg').classList.remove('open');
+  });
+  document.addEventListener('contextmenu', e => {
+    const f = e.target.closest('[data-fight]');
+    if (f) { e.preventDefault(); fightMenu(Q(f.dataset.id), +f.dataset.fight, e.clientX, e.clientY); return; }
+    const c = e.target.closest('#w-board [data-id], #w-tracker [data-id]');
+    if (c && Q(c.dataset.id)) { e.preventDefault(); ticketMenu(Q(c.dataset.id), e.clientX, e.clientY); }
+  });
+  document.addEventListener('change', e => {
+    const t = e.target;
+    if (t.id === 'tSort') { S.set.sort = t.value; render(); return; }
+    if (t.id === 'bFilter') { S.ui.filter = t.value; renderBoard(); return; }
+    if (t.id === 'lgroup') { S.ui.lgroup = t.value; renderBoard(); return; }
+    if (t.id === 'fEpic') { S.ui.flowEpic = t.value; renderFlow(); return; }
+    if (t.id === 'goal') { S.sprint.goalEdited = t.value; toast(T('Sprint goal saved.')); return; }
+    const k = t.dataset.set; if (!k) return;
+    if (k === 'lang') { setLang(t.value); return; }
+    let v = t.type === 'checkbox' ? t.checked : t.value;
+    if (k === 'cap') v = clamp(Math.round(+v || 60), 15, 240);
+    if (k === 'scale') v = +v;
+    S.set[k] = v;
+    if (k === 'holdCol' || k === 'combo' || k === 'view') S.ui.proposal = null;
+    if (k === 'toasts' && v) toast(T('Toasts on.'));
+    render();
+  });
+  document.addEventListener('input', e => {
+    const t = e.target;
+    if (t.id === 'tScale' || t.dataset.set === 'scale') {
+      S.set.scale = +t.value; $('#tBody').style.setProperty('--sc', S.set.scale / 100);
+      $('#tScaleV').textContent = S.set.scale + '%'; const sv = $('#setScaleV'); if (sv) sv.textContent = S.set.scale + '%';
+      if (t.id === 'tScale') { const s2 = $('#set-scale'); if (s2) s2.value = t.value; } else $('#tScale').value = t.value;
+    }
+  });
+  document.addEventListener('keydown', e => {
+    const tg = e.target, typing = tg.matches && tg.matches('input[type=text],input[type=number],textarea,select,[contenteditable]');
+    if (e.key === 'Escape') {
+      if ($('#ctx').classList.contains('open')) { hideMenu(); return; }
+      if ($('#dlgbg').classList.contains('open')) { $('#dlgbg').classList.remove('open'); return; }
+      hideTip();
+      const w = topWin(); if (w) { closeWin(w); e.preventDefault(); }
+      return;
+    }
+    if ((e.key === 'b' || e.key === 'B') && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) { toggleWin('board'); e.preventDefault(); return; }
+    if ((e.key === 'Enter' || e.key === ' ') && tg.matches && tg.matches('[data-act][tabindex]:not(button)')) { e.preventDefault(); tg.click(); return; }
+    if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && tg.getAttribute && tg.getAttribute('role') === 'tab') {
+      const tabs = [...tg.parentElement.querySelectorAll('[role=tab]')], i = tabs.indexOf(tg), n = tabs[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+      n.click(); e.preventDefault();
+    }
+    if ($('#ctx').classList.contains('open') && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      const bs = $$('#ctx button:not([disabled])'), i = bs.indexOf(document.activeElement);
+      bs[(i + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length].focus(); e.preventDefault();
+    }
+  });
+  document.addEventListener('mouseover', e => { const t = e.target.closest('[data-tiph]'); if (t) showTip(t); });
+  document.addEventListener('mouseout', e => { if (e.target.closest('[data-tiph]')) hideTip(); });
+  document.addEventListener('focusin', e => { const t = e.target.closest && e.target.closest('[data-tiph]'); if (t) showTip(t); else hideTip(); });
+  window.addEventListener('resize', () => { checkPhone(); deskHeight(); });
+  $('#tSprint').addEventListener('click', () => openWin('board'));
+}
+
+// ---------- start ----------
+initState('en');
+initEvents();
+initDrag();
+initFlowInput();
+checkPhone();
+applyStatic();
+$$('.win').forEach(w => w.classList.toggle('open', !!S.open[w.id.slice(2)] || PHONE));
+if (!PHONE) defaultLayout();
+S.ui.sel = 'band';
+openWin('board');
+if (PHONE) { S.ui.ptab = 'tracker'; renderTabs(); }
+render();
+// test hook for the Playwright checks (no effect on the demo)
+window.SoA = { get S() { return S; }, Q, F, SIM, render, openWin, closeWin, setLang, missing: MISSING, fitFlow };
+</script>
+</body>
+</html>
