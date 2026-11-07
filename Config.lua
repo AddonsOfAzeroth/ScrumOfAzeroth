@@ -85,6 +85,21 @@ function C:Options()
 	add({ type = "choice", label = L["Put on hold? after no progress"], opts = {
 		{ 0, L["Off"] }, { 15, "15 min" }, { 30, "30 min" }, { 45, "45 min" }, { 60, "60 min" }, { 120, "2h" } }, get = g, set = s })
 
+	add({ type = "header", text = L["Flow view"] })
+	g, s = opt("flow", "showLearned")
+	add({ type = "check", label = L["Show learned links"], tip = L["Follow-ups learned from your own play (all characters), drawn dashed. Right-click one to remove it."], get = g, set = s })
+	g, s = opt("flow", "showDone")
+	add({ type = "check", label = L["Show completed quests"], get = g, set = s })
+	g, s = opt("flow", "dir")
+	add({ type = "choice", label = L["Direction"], opts = { { "lr", L["Left to right"] }, { "tb", L["Top to bottom"] } }, get = g, set = s })
+	g, s = opt("flow", "nodeSize")
+	add({ type = "choice", label = L["Node size"], opts = { { 0.8, L["Small"] }, { 1, L["Medium"] }, { 1.25, L["Large"] } }, get = g, set = s })
+	add({ type = "button", label = L["Open the flow view"], fn = function() SoA:ToggleFlow() end })
+	add({ type = "button", label = L["Forget learned links"], fn = function()
+		if SoA.EpicFlow then SoA.EpicFlow:ResetLearned() end
+		SoA:Print(L["Learned links forgotten."])
+	end })
+
 	add({ type = "header", text = L["Zone stories"] })
 	g, s = opt("stories", "enabled")
 	add({ type = "check", label = L["Zone-story achievements as epics"], tip = L["Found in the achievement list at runtime; completion dates appear on the roadmap."], get = g, set = s })

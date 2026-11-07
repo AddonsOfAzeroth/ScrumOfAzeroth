@@ -49,6 +49,7 @@ local charDefaults = {
 		width = 250, height = 320, sort = "priority", point = nil,
 	},
 	list = { sort = "priority", desc = false, group = "epic", fold = {} }, -- the board's List view
+	flow = { showLearned = true, showDone = true, dir = "lr", nodeSize = 1, width = 900, height = 520 }, -- Flow view (EpicFlow.lua); dir "lr" or "tb"
 	sprint = nil, -- created on first use (Sprint.lua)
 	point = nil,  -- board window position
 }
@@ -56,6 +57,7 @@ local charDefaults = {
 local accountDefaults = {
 	language = "auto", -- "auto", "enUS" or "nlNL"
 	characters = {},   -- ["Name-Realm"] = { class, level, lastSeen } (for external tools)
+	flow = { edges = {}, rejected = {} }, -- learned follow-up links: edges[fromQuestID][toQuestID] = count (EpicFlow.lua)
 }
 
 -- Bumped when the layout of the saved data changes (external tools read it).
@@ -313,6 +315,8 @@ SlashCmdList.SCRUMOFAZEROTH = function(msg)
 	local L = SoA.L
 	if msg == "config" or msg == "settings" or msg == "options" then
 		SoA:ToggleConfig()
+	elseif msg == "flow" then
+		SoA:ToggleFlow()
 	elseif msg == "sprint" then
 		if SoA.Sprint then SoA.Sprint:NewSprint() end
 	elseif msg == "debug" then
@@ -321,6 +325,6 @@ SlashCmdList.SCRUMOFAZEROTH = function(msg)
 	elseif msg == "" or msg == "board" then
 		SoA:ToggleBoard()
 	else
-		SoA:Print(L["/soa board: quest board. /soa config: settings. /soa sprint: start a new sprint."])
+		SoA:Print(L["/soa board: quest board. /soa flow: flow view. /soa config: settings. /soa sprint: start a new sprint."])
 	end
 end

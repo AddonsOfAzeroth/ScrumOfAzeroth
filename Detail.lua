@@ -221,8 +221,12 @@ function Canvas:Icons(list)
 			btn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 			btn.count = S:Font(btn, 10)
 			btn.count:SetPoint("BOTTOMRIGHT", -2, 2)
+			-- left-aligned under the icon: centred it stuck out past the left edge and was clipped
 			btn.up = S:Font(btn, 8)
-			btn.up:SetPoint("TOP", btn, "BOTTOM", 0, -1)
+			btn.up:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -1)
+			btn.up:SetWidth(35)
+			btn.up:SetJustifyH("LEFT")
+			btn.up:SetWordWrap(false)
 			btn.up:SetTextColor(0.3, 0.9, 0.3)
 			btn:SetScript("OnEnter", function(self2)
 				GameTooltip:SetOwner(self2, "ANCHOR_RIGHT")
@@ -682,6 +686,12 @@ local function questActions(cv, it)
 			list[#list + 1] = { L["+ Add to sprint"], function() SoA.Sprint:Add(it.key) SoA.Board:NotifyCK() end }
 		end
 	end
+	if it.kind ~= "ticket" and SoA.EpicFlow and SoA.EpicFlow:CanShow(it) then
+		list[#list + 1] = { L["Show flow"], function() SoA.EpicFlow:OpenFor(it) end, L["The flow of this quest's epic: a zoomable map."] }
+	end
+	if SoA.Flow:CanStart(it) then
+		table.insert(list, 1, { L["Start"], function() SoA.Flow:Start(it) SoA.Detail:Schedule() end, L["In progress now, into the sprint and selected, so the route can lead you there."] })
+	end
 	cv:Buttons(list)
 end
 
@@ -962,7 +972,7 @@ local EVENT_COLOR = {
 	manual = { 0.85, 0.45, 1.00 }, auto = { 0.85, 0.45, 1.00 }, lost = { 0.95, 0.30, 0.30 },
 	blocked = { 0.95, 0.30, 0.30 }, unblocked = { 0.30, 0.90, 0.30 }, hold = { 1.00, 0.82, 0.25 },
 	resumed = { 0.30, 0.90, 0.30 }, turnedin = { 1.00, 0.82, 0.00 }, death = { 0.95, 0.30, 0.30 },
-	corrected = { 0.85, 0.45, 1.00 },
+	corrected = { 0.85, 0.45, 1.00 }, start = { 0.30, 0.90, 0.30 },
 }
 
 local function eventText(e)
@@ -980,6 +990,7 @@ local function eventText(e)
 	if k == "ready" then return L["Ready to turn in"] end
 	if k == "manual" then return L["Moved by you: %s > %s"]:format(st(e.from), st(e.to)) end
 	if k == "auto" then return L["Automatic status resumed"] end
+	if k == "start" then return L["Started by you"] end
 	if k == "lost" then return L["Objective lost: %s"]:format(e.text or "?") end
 	if k == "blocked" then return L["Blocked"] .. (e.reason and (": " .. e.reason) or "") end
 	if k == "unblocked" then return L["Unblocked"] end
@@ -1053,6 +1064,9 @@ function D:EpicView(cv, tab)
 	local color = (e and e.color) or (me and me.color) or S.gold
 	cv:Text(name, { size = 14, color = color })
 	if e and e.tag then cv:Text(e.tag, { size = 10, color = S.colors.muted }) end
+	if SoA.EpicFlow and SoA.EpicFlow:NormKey(key) then
+		cv:Buttons({ { L["Show flow"], function() SoA.EpicFlow:Open(key) end } })
+	end
 	local s = SoA.Activity:EpicStats(key)
 	if tab == "overview" then
 		if e then epicSteps(cv, e) end

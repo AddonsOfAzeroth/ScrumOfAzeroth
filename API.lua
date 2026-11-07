@@ -5,7 +5,7 @@
 local _, ns = ...
 local SoA = ns.SoA
 
-local API = { version = 2 }
+local API = { version = 3 }
 SoA.API = API
 
 local CBH = LibStub and LibStub("CallbackHandler-1.0", true)
@@ -39,6 +39,9 @@ SoA:Listen("TICKET_STATUS", function(key, status) fire("SOA_TICKET_STATUS", key,
 
 function API.ToggleBoard() SoA:ToggleBoard() end
 function API.ToggleConfig() SoA:ToggleConfig() end
+function API.ToggleFlow() SoA:ToggleFlow() end
+-- epicKey: "ql:<questLineID>", "cp:<campaignID>" or "in:<campaignID>"; focusQuestID optional
+function API.OpenFlow(epicKey, focusQuestID) if SoA.EpicFlow then SoA.EpicFlow:Open(epicKey, focusQuestID) end end
 
 function API.IsSprintActive() return SoA.Sprint:IsActive() end
 function API.IsInSprint(key) return SoA.Sprint:Contains(key) end

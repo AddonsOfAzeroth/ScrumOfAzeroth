@@ -300,8 +300,14 @@ local function itemMenu(anchor, it)
 	if it.kind == "combo" then it = it.members[1] end
 	local entries = {}
 	entries[#entries + 1] = { text = L["Details"], color = SoA.Style.colors.accent, fn = function() SoA.Detail:Open(it) end }
+	if SoA.Flow:CanStart(it) then
+		entries[#entries + 1] = { text = L["Start"], color = SoA.Style.green, fn = function() SoA.Flow:Start(it) end }
+	end
 	if it.epicKey and it.epicKey ~= "loose" and not it.epicKey:find("^lb:") then
 		entries[#entries + 1] = { text = L["Epic details"], color = it.color, fn = function() SoA.Detail:OpenEpic(it.epicKey) end }
+	end
+	if SoA.EpicFlow and SoA.EpicFlow:CanShow(it) then
+		entries[#entries + 1] = { text = L["Show flow"], color = it.color, fn = function() SoA.EpicFlow:OpenFor(it) end }
 	end
 	if it.kind == "quest" then
 		entries[#entries + 1] = { text = L["Open in quest log"], fn = function() A.Open(it.id, it.index) end }
@@ -969,6 +975,9 @@ function B:Create()
 	ticket.tip = L["A task that is not a quest, e.g. train spells or farm cloth."]
 	local settings = S:Button(head, L["Settings"], 70, 20, function() SoA:ToggleConfig() end)
 	settings:SetPoint("RIGHT", ticket, "LEFT", -6, 0)
+	local flowBtn = S:Button(head, L["Flow"], 60, 20, function() SoA:ToggleFlow() end)
+	flowBtn:SetPoint("RIGHT", settings, "LEFT", -6, 0)
+	flowBtn.tip = L["Flow view: a zoomable map of an epic or initiative."]
 
 	-- info line: level forecast
 	self.info = S:Font(f, 11)
@@ -1002,12 +1011,17 @@ function B:Create()
 	goal:SetScript("OnEscapePressed", function(e) e:SetText(SoA.Sprint.Data().goal or "") e:ClearFocus() end)
 	self.goal = goal
 
+	-- both lines stop before the burndown chart / sprint buttons and end in "..." when too long
 	self.stripText = S:Font(strip, 11)
 	self.stripText:SetPoint("TOPLEFT", 284, -8)
+	self.stripText:SetPoint("TOPRIGHT", -104, -8)
 	self.stripText:SetJustifyH("LEFT")
+	self.stripText:SetWordWrap(false)
 	self.capText = S:Font(strip, 11)
 	self.capText:SetPoint("TOPLEFT", 284, -26)
+	self.capText:SetPoint("TOPRIGHT", -372, -26)
 	self.capText:SetJustifyH("LEFT")
+	self.capText:SetWordWrap(false)
 
 	self.chart = CreateFrame("Frame", nil, strip, "BackdropTemplate")
 	self.chart:SetSize(90, 34)
@@ -1510,8 +1524,8 @@ function B:Render()
 		top = top + STRIP_H + GAP
 		if not self.goal:HasFocus() then self.goal:SetText(st.goal or "") end
 		self.stripText:SetText(L["Committed %s / Delivered %s"]:format(S:Minutes(st.committed), S:Minutes(st.delivered))
-			.. "  |cffffd100" .. L["%s / %s XP"]:format(S:Short(st.xpDelivered), S:Short(st.xpCommitted)) .. "|r"
-			.. "  |cff999999" .. L["%d/%d done"]:format(st.doneItems, st.items) .. "|r")
+			.. "   |cffffd100" .. L["%s / %s XP"]:format(S:Short(st.xpDelivered), S:Short(st.xpCommitted)) .. "|r"
+			.. "   |cff999999" .. L["%d/%d done"]:format(st.doneItems, st.items) .. "|r")
 		local capText
 		if st.capKind == "xp" then
 			capText = L["Capacity: %s / %s XP"]:format(S:Short(st.capUsed), S:Short(st.capTotal))

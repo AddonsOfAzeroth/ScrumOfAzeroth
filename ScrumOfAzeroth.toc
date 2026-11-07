@@ -3,7 +3,7 @@
 ## Notes: Agile questing: questlines as epics, a Kanban/Scrum quest board, sprints with burndown, estimates and priorities.
 ## Notes-nlNL: Agile questen: questlijnen als epics, een Kanban/Scrum-questbord, sprints met burndown, schattingen en prioriteiten.
 ## Author: DinX
-## Version: 0.2.0
+## Version: 0.3.0
 ## IconTexture: Interface\Icons\INV_Misc_Note_01
 ## SavedVariables: ScrumOfAzerothDB
 ## SavedVariablesPerCharacter: ScrumOfAzerothCharDB
@@ -31,6 +31,7 @@ Review.lua
 API.lua
 Board.lua
 Detail.lua
+EpicFlow.lua
 Config.lua
 Bridge_CasterKit.lua
 Tracker.lua

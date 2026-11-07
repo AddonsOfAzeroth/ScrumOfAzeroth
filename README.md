@@ -10,6 +10,7 @@ Agile questing for World of Warcraft (WoW Forever client, interface 16001). By D
 - **Estimates**: minutes per quest from walking, kills, drops, clicks and progress bars, learned from your own play. Shown as a range.
 - **Priorities**: Jira-style, automatic (XP per minute, chain value, difficulty, upgrades, blockers) or set by hand.
 - **Flow**: manual status moves (afterwards automatic moves only go forward until "Resume automatic"), toasts, "Put on hold?" hints, shared-mob quests linked or grouped.
+- **Flow view** (`/soa flow`, the board's Flow button, or "Show flow" on a card or in the details): a zoomable, pannable node graph of an epic (questline) or initiative (campaign). The main line runs in questline order; side branches come from quests shared by two questlines, campaign chapters and follow-ups learned from your own play (dashed; right-click to remove). Nodes show status, level, progress and the estimate or actual time; a click opens the details, shift-click adds a GPS stop. Fit, zoom with the mouse wheel, drag to pan, minimap in the corner. Never rebuilt in combat.
 - **Compact tracker**: only when no partner tracker (CasterKit) is shown; with quest item buttons.
 
 Display only: it never accepts, turns in, abandons, casts, moves or equips anything, and never moves a card by itself.
@@ -21,15 +22,18 @@ Optional. With CasterKit loaded, CasterKit's locked quest route **is** the sprin
 ## Commands
 
 - `/soa` or `/soa board`: quest board
+- `/soa flow`: flow view of an epic or initiative
 - `/soa config`: settings
 - `/soa sprint`: start a new sprint
 
 ## API for other add-ons
 
-`ScrumOfAzeroth.API` (with a `version` field). Callbacks via CallbackHandler-1.0: `SOA_SPRINT_CHANGED`, `SOA_TICKET_STATUS`, `SOA_PRIORITY_CHANGED`.
+`ScrumOfAzeroth.API` (with a `version` field; 3 adds `ToggleFlow()` and `OpenFlow(epicKey, focusQuestID)`). Callbacks via CallbackHandler-1.0: `SOA_SPRINT_CHANGED`, `SOA_TICKET_STATUS`, `SOA_PRIORITY_CHANGED`.
 
 ## Saved data
 
 `ScrumOfAzerothDB` and `ScrumOfAzerothCharDB` carry a `schemaVersion`; timestamps are `time()` seconds; fights, walks, sprints (`review.history`), sessions (`review.sessions`) and tickets (`tickets.list`) are arrays of records.
+
+Learned flow links are stored per account in `ScrumOfAzerothDB.flow.edges` (`[fromQuestID] = { [toQuestID] = count }`) and `flow.rejected` (links you removed); a link is drawn after 2 observations, or 1 when the questline confirms the order. Flow settings are per character in `ScrumOfAzerothCharDB.flow`.
 
 Languages: English and Dutch (follows the game client, CasterKit's language, or the setting).

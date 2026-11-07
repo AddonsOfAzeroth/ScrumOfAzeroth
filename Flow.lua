@@ -57,6 +57,29 @@ function F:ResumeAuto(questID)
 	SoA:Fire("MODEL_DIRTY")
 end
 
+-- Start working on a card before the first objective happens: In progress,
+-- off hold, into the running sprint and selected (arrow / route target).
+function F:CanStart(it)
+	if not (it and (it.kind == "quest" or it.kind == "ticket")) then return false end
+	return it.onHold or it.column == "todo"
+end
+
+function F:Start(it)
+	if not it then return end
+	if SoA.Hold and SoA.Hold:Get(it.key) then SoA.Hold:Resume(it.key) end
+	if it.column ~= "doing" and it.column ~= "ready" then self:MoveTo(it, "doing") end
+	if SoA.Sprint:IsActive() and not SoA.Sprint:Contains(it.key) then SoA.Sprint:Add(it.key) end
+	if it.kind == "quest" then
+		SoA.Actions.Select(it.id, it.title)
+	elseif it.ticket and type(it.ticket.map) == "table" then
+		local t = it.ticket
+		SoA.Actions.PointTo(t.map.m, t.map.x, t.map.y, t.title)
+	end
+	if SoA.Activity then SoA.Activity:Event(it.key, "start") end
+	if SoA.Board then SoA.Board:NotifyCK() end
+	SoA:Fire("MODEL_DIRTY")
+end
+
 -- Manual move of any card (quests and custom tickets).
 function F:MoveTo(it, status)
 	if not it then return end
