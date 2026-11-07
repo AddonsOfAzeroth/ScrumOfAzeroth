@@ -417,7 +417,7 @@ end
 
 -- a partner that loads after us (load on demand, or no OptionalDeps order)
 SoA:On("ADDON_LOADED", function(_, name)
-	if name == "CasterKit" or name == "RoadsOfAzeroth" then
+	if name == "CastersOfAzeroth" or name == "CasterKit" or name == "RoadsOfAzeroth" then
 		C_Timer.After(0, function()
 			Bridge:Attach()
 			if IsLoggedIn and IsLoggedIn() then refreshPartner() end

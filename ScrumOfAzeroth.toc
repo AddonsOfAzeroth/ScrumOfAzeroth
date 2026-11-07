@@ -7,7 +7,7 @@
 ## IconTexture: Interface\Icons\INV_Misc_Note_01
 ## SavedVariables: ScrumOfAzerothDB
 ## SavedVariablesPerCharacter: ScrumOfAzerothCharDB
-## OptionalDeps: CasterKit, RoadsOfAzeroth
+## OptionalDeps: CastersOfAzeroth, CasterKit, RoadsOfAzeroth
 
 libs\LibStub\LibStub.lua
 libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
