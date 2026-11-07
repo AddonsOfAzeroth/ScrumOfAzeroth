@@ -8,25 +8,51 @@ local num, str, flag, try = SoA.num, SoA.str, SoA.flag, SoA.try
 local T = SoA:NewModule("Tickets")
 T.STATUS = { "todo", "doing", "ready", "done" }
 
+-- ScrumOfAzerothCharDB.tickets = { list = array of { key = "t:<n>", title, status, minutes, label,
+--   checklist = { { text, done } }, item = { need, spec, label }, map = { m, x, y }, notes, created, doneAt, manual }, next = n }
 local function db()
 	local c = SoA.char
 	if not c then return { list = {}, next = 1 } end
 	if type(c.tickets) ~= "table" then c.tickets = {} end
 	if type(c.tickets.list) ~= "table" then c.tickets.list = {} end
+	-- 0.1.x kept a map key -> ticket: turn it into an array of records
+	local l = c.tickets.list
+	local isArray = true
+	for k in pairs(l) do if type(k) ~= "number" then isArray = false break end end
+	if not isArray then
+		local arr = {}
+		for k, t in pairs(l) do
+			if type(t) == "table" then
+				t.key = t.key or (type(k) == "string" and k or nil)
+				if t.key then arr[#arr + 1] = t end
+			end
+		end
+		table.sort(arr, function(a, b) return num(a.created, 0) < num(b.created, 0) end)
+		c.tickets.list = arr
+	end
 	c.tickets.next = num(c.tickets.next, 1)
 	return c.tickets
 end
 
+local function indexOf(key)
+	for i, t in ipairs(db().list) do
+		if type(t) == "table" and t.key == key then return i end
+	end
+end
+
 function T:All()
 	local out = {}
-	for _, t in pairs(db().list) do
+	for _, t in ipairs(db().list) do
 		if type(t) == "table" then out[#out + 1] = t end
 	end
 	table.sort(out, function(a, b) return num(a.created, 0) < num(b.created, 0) end)
 	return out
 end
 
-function T:Get(key) return db().list[key] end
+function T:Get(key)
+	local i = indexOf(key)
+	return i and db().list[i] or nil
+end
 
 function T:New()
 	local d = db()
@@ -37,12 +63,15 @@ end
 
 function T:Save(t)
 	if not (t and t.key) then return end
-	db().list[t.key] = t
+	local i = indexOf(t.key)
+	local list = db().list
+	if i then list[i] = t else list[#list + 1] = t end
 	SoA:Fire("MODEL_DIRTY")
 end
 
 function T:Delete(key)
-	db().list[key] = nil
+	local i = indexOf(key)
+	if i then table.remove(db().list, i) end
 	if SoA.Sprint then SoA.Sprint:Remove(key) end
 	if SoA.Priority then SoA.Priority:SetManual(key, nil) end
 	SoA:Fire("MODEL_DIRTY")
@@ -104,7 +133,10 @@ function T:Move(key, dir)
 	local idx = 1
 	for i, s in ipairs(self.STATUS) do if s == t.status then idx = i end end
 	idx = math.max(1, math.min(#self.STATUS, idx + dir))
+	local old = t.status
+	if SoA.Flow then SoA.Flow:Forget(key) end
 	self:SetStatus(key, self.STATUS[idx])
+	if SoA.Activity and old ~= t.status then SoA.Activity:Event(key, "manual", { from = old, to = t.status }) end
 end
 
 function T:Toggle(key, i)
@@ -161,7 +193,7 @@ end
 local function build()
 	local L, S = SoA.L, SoA.Style
 	local f = CreateFrame("Frame", "ScrumOfAzerothTicket", UIParent, "BackdropTemplate")
-	f:SetSize(380, 420)
+	f:SetSize(380, 490)
 	f:SetPoint("CENTER", 0, 60)
 	f:SetFrameStrata("DIALOG")
 	f:SetToplevel(true)
@@ -205,7 +237,12 @@ local function build()
 	f.list:SetPoint("TOPLEFT", 12, -186)
 	f.list:SetMaxLetters(600)
 
-	label(f, L["Priority"], 12, -292)
+	label(f, L["Notes"], 12, -290)
+	f.notes = edit(f, 356, 54, true)
+	f.notes:SetPoint("TOPLEFT", 12, -306)
+	f.notes:SetMaxLetters(400)
+
+	label(f, L["Priority"], 12, -366)
 	f.prio = S:Button(f, "", 120, 20, function()
 		local cur = f.ticketPrio or 3
 		cur = cur % 5 + 1
@@ -214,11 +251,11 @@ local function build()
 		local c = SoA.Priority:Color(cur)
 		f.prio.text:SetTextColor(c[1], c[2], c[3])
 	end)
-	f.prio:SetPoint("TOPLEFT", 12, -308)
+	f.prio:SetPoint("TOPLEFT", 12, -382)
 
-	label(f, L["Location"], 150, -292)
+	label(f, L["Location"], 150, -366)
 	f.loc = S:Font(f, 11)
-	f.loc:SetPoint("TOPLEFT", 150, -312)
+	f.loc:SetPoint("TOPLEFT", 150, -386)
 	f.loc:SetWidth(100)
 	f.loc:SetJustifyH("LEFT")
 	f.here = S:Button(f, L["Here"], 50, 20, function()
@@ -233,7 +270,7 @@ local function build()
 			end
 		end
 	end)
-	f.here:SetPoint("TOPLEFT", 260, -308)
+	f.here:SetPoint("TOPLEFT", 260, -382)
 	f.here.tip = L["Use your current position as the ticket's location."]
 	f.clearLoc = S:Button(f, "x", 22, 20, function() f.ticketMap = nil f:ShowLoc() end)
 	f.clearLoc:SetPoint("LEFT", f.here, "RIGHT", 4, 0)
@@ -277,6 +314,7 @@ function T:OpenDialog(key)
 	local lines = {}
 	for _, c in ipairs(t.checklist or {}) do lines[#lines + 1] = c.text end
 	dlg.list:SetText(table.concat(lines, "\n"))
+	dlg.notes:SetText(t.notes or "")
 	dlg.ticketPrio = SoA.Priority:Manual(t.key) or 3
 	dlg.prio.text:SetText(SoA.Priority:Name(dlg.ticketPrio))
 	local c = SoA.Priority:Color(dlg.ticketPrio)
@@ -310,6 +348,7 @@ function T:SaveDialog()
 		if line ~= "" then t.checklist[#t.checklist + 1] = { text = line, done = old[line] or false } end
 	end
 	t.map = dlg.ticketMap
+	t.notes = str(strtrim(dlg.notes:GetText() or ""))
 	self:Save(t)
 	SoA.Priority:SetManual(t.key, dlg.ticketPrio)
 	dlg:Hide()

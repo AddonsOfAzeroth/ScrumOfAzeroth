@@ -111,6 +111,7 @@ function SP:AddMany(keys)
 		if it then
 			s.est[key], s.xp[key], s.titles[key], s.epics[key] = it.minutes, it.xp, it.title, it.epicKey
 		end
+		if SoA.Activity then SoA.Activity:Event(key, "sprint") end
 	end
 	if changed then writeKeys(list) end
 	SoA:Fire("SPRINT")
@@ -135,6 +136,7 @@ function SP:Remove(key)
 		s.tickets[key] = nil
 	end
 	s.est[key], s.xp[key], s.titles[key], s.epics[key], s.done[key] = nil, nil, nil, nil, nil
+	if SoA.Activity then SoA.Activity:Event(key, "backlog") end
 	SoA:Fire("SPRINT")
 end
 

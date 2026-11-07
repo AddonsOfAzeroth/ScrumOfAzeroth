@@ -69,6 +69,7 @@ function M:Build()
 		}
 		inLog[q.id] = true
 		it.rank = pe and num(pe.rank)
+		it.planDistance = pe and num(pe.distance)
 		it.zone = q.zone or (pe and pe.zoneMatch) or false
 		it.xp = (pe and num(pe.xp)) or Log:RewardXP(q.id)
 		it.est = Est:Quest(q, pe and pe.distance)
@@ -91,6 +92,22 @@ function M:Build()
 		it.upgrade = U:ForQuest(q.id)
 		if q.ready then it.turnIn = Log:TurnInText(q.id) end
 		it.column = q.ready and "ready" or (q.progress and "doing" or "todo")
+		SoA.Flow:Apply(it) -- manual moves: forward only until "Resume automatic"
+		-- zone story (achievement): the epic of a quest without a questline
+		local st = SoA.Stories and SoA.Stories:ForQuest(q.id)
+		if st then
+			it.story, it.storyKey = st, st.key
+			addEpic(st.key, st.name, st.color)
+			if it.epicKey == "loose" then
+				it.epic, it.epicKey, it.epicName, it.color = st, st.key, st.name, st.color
+			end
+		end
+		-- the quest's usable item (display only; the secure button lives in the tracker)
+		if GetQuestLogSpecialItemInfo and q.index then
+			local link, tex = try(GetQuestLogSpecialItemInfo, q.index)
+			local icon = num(tex) or str(tex)
+			if str(link) and icon then it.itemLink, it.itemTex = str(link), icon end
+		end
 		m.items[#m.items + 1] = it
 	end
 
@@ -161,6 +178,8 @@ function M:Build()
 		it.priority = manual or auto
 		it.pinned = manual ~= nil
 		it.inSprint = SP:Contains(it.key)
+		it.holdHint = SoA.Flow:HoldHint(it)
+		if SoA.Activity then SoA.Activity:NoteItem(it) end
 		m.byKey[it.key] = it
 	end
 
@@ -226,6 +245,7 @@ function M:Build()
 	end
 
 	SP:Sync(m)
+	SoA.Flow:Track(m)
 	return m
 end
 
@@ -252,9 +272,12 @@ function M:Shared(m, ctx)
 				local mx = math.max(kA, kB)
 				local saveA = (kA - kA / (kA + kB) * mx) * kt / 60
 				local saveB = (kB - kB / (kA + kB) * mx) * kt / 60
-				A.shared = { partnerKey = B.key, partner = B.title, soloMin = A.minutes,
+				local mob = SoA.Activity and SoA.Activity:MobFor(A.id, B.id)
+				A.shared = { partnerKey = B.key, partner = B.title, soloMin = A.minutes, role = "kill", mob = mob,
+					have = oa.have, need = oa.need, text = oa.text,
 					extraMin = math.max(0, kA - kB) * kt / 60 + math.max(0, A.minutes - kA * kt / 60) }
-				B.shared = { partnerKey = A.key, partner = A.title, soloMin = B.minutes,
+				B.shared = { partnerKey = A.key, partner = A.title, soloMin = B.minutes, role = "item", mob = mob,
+					have = ob.have, need = ob.need, text = ob.text,
 					extraMin = math.max(0, kB - kA) * kt / 60 + math.max(0, B.minutes - kB * kt / 60) }
 				local function apply(it, save, other)
 					if save <= 0 then
@@ -286,6 +309,89 @@ function M:Shared(m, ctx)
 			end
 		end
 	end
+end
+
+---------------------------------------------------------------------------
+-- Sort modes (List view and compact tracker)
+---------------------------------------------------------------------------
+M.SORT_LABEL = {
+	priority = "Priority", sprint = "Sprint order", status = "Status", epic = "Epic", level = "Level",
+	xp = "XP", xpm = "XP/min", estimate = "Estimate", zone = "Zone", distance = "Distance",
+	title = "Quest", progress = "Progress", route = "Smart route",
+}
+local BASE_SORTS = { "priority", "sprint", "status", "epic", "level", "xp", "xpm", "estimate", "zone", "distance" }
+
+-- Available modes; "route" only with a route provider (CasterKit now, Roads later).
+function M:SortModes()
+	local out = {}
+	for _, k in ipairs(BASE_SORTS) do out[#out + 1] = k end
+	if SoA.Bridge and SoA.Bridge.attached and SoA.Bridge.HasRoute and SoA.Bridge.HasRoute() then table.insert(out, 1, "route") end
+	return out
+end
+
+local STATUS_ORDER = { doing = 1, ready = 2, todo = 3, hold = 4, done = 5 }
+
+function M.Progress(it)
+	if it.ready then return 1 end
+	local sum, n = 0, 0
+	for _, o in ipairs(it.objectives or {}) do
+		n = n + 1
+		if o.done then sum = sum + 1
+		elseif o.pct then sum = sum + math.max(0, math.min(100, o.pct)) / 100
+		elseif o.need and o.need > 0 then sum = sum + math.min(1, (o.have or 0) / o.need) end
+	end
+	return n > 0 and sum / n or 0
+end
+
+function M.Status(it)
+	if it.onHold then return "hold" end
+	if it.kind == "done" then return "done" end
+	return it.column or "todo"
+end
+
+local function distance(it)
+	if it._dist == nil then
+		it._dist = (it.kind == "quest" and (it.planDistance or SoA.Estimate:Distance(it.id))) or false
+	end
+	return it._dist or 1e9
+end
+
+function M:Sort(list, mode, desc)
+	local P = SoA.Priority
+	local sprintPos = {}
+	if mode == "sprint" then
+		local keys = SoA.Sprint:IsActive() and SoA.Sprint:Backend():GetKeys()
+		for i, k in ipairs(type(keys) == "table" and keys or {}) do
+			local id = type(k) == "string" and tonumber(k:match("^(%d+):") or "")
+			if id and not sprintPos[id] then sprintPos[id] = i end
+		end
+	end
+	local function val(it)
+		if mode == "sprint" then return sprintPos[it.key] or (it.inSprint and 900 or 1000) end
+		if mode == "status" then return STATUS_ORDER[M.Status(it)] or 9 end
+		if mode == "epic" then return (it.epicKey == "loose" and "~" or "") .. (it.epicName or "~") end
+		if mode == "level" then return it.level or 0 end
+		if mode == "xp" then return -(it.xp or 0) end
+		if mode == "xpm" then return -(it.xpm or 0) end
+		if mode == "estimate" then return it.minutes or 1e6 end
+		if mode == "zone" then return it.zone and 0 or 1 end
+		if mode == "distance" then return distance(it) end
+		if mode == "title" then return it.title or "" end
+		if mode == "progress" then return -M.Progress(it) end
+		if mode == "route" then return it.rank or 1e6 end
+	end
+	table.sort(list, function(a, b)
+		if mode ~= "priority" then
+			local va, vb = val(a), val(b)
+			if va ~= vb then
+				if desc then return va > vb end
+				return va < vb
+			end
+		elseif desc then
+			return P.Compare(b, a)
+		end
+		return P.Compare(a, b)
+	end)
 end
 
 function M:OnEnable()

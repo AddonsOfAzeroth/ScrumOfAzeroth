@@ -19,7 +19,7 @@ local function opt(group, key)
 		function(v) SoA.char[group][key] = v changed() end
 end
 
--- ck = true: also on CasterKit's page (which has less room)
+-- Every option appears in our own window and on CasterKit's page (scrollable).
 function C:Options()
 	local L = SoA.L
 	local o = {}
@@ -61,6 +61,49 @@ function C:Options()
 	g, s = opt("capacity", "xp")
 	add({ type = "choice", label = L["XP target"], opts = {
 		{ 2000, "2,000" }, { 5000, "5,000" }, { 10000, "10,000" }, { 20000, "20,000" }, { 50000, "50,000" }, { 100000, "100,000" } }, get = g, set = s })
+
+	add({ type = "header", text = L["Cards and details"] })
+	g, s = opt("board", "groupShared")
+	add({ type = "check", label = L["Group shared quests (one combo card)"], tip = L["Two quests on the same mobs become one card that opens to the two quests."], get = g, set = s })
+	g, s = opt("detail", "docked")
+	add({ type = "check", label = L["Details docked at the board"], tip = L["Otherwise the details open in a separate movable window."], get = g, set = s })
+	g, s = opt("detail", "trackerClick")
+	add({ type = "choice", label = L["Tracker click opens"], opts = { { "board", L["Board + details"] }, { "details", L["Details only"] } }, get = g, set = s })
+
+	add({ type = "header", text = L["Activity"] })
+	g, s = opt("activity", "enabled")
+	add({ type = "check", label = L["Track fights, walking and downtime per quest"], tip = L["Reads the built-in damage meter after each fight (read only). No combat log."], get = g, set = s })
+	add({ type = "button", label = L["Reset activity data"], fn = function()
+		SoA.Activity:Reset()
+		SoA:Print(L["Activity data reset."])
+	end })
+
+	add({ type = "header", text = L["Toasts"] })
+	g, s = opt("toasts", "enabled")
+	add({ type = "check", label = L["Show toasts"], tip = L["Automatic status moves, Ready to resume, progress on an on-hold quest."], get = g, set = s })
+	g, s = opt("toasts", "holdHint")
+	add({ type = "choice", label = L["Put on hold? after no progress"], opts = {
+		{ 0, L["Off"] }, { 15, "15 min" }, { 30, "30 min" }, { 45, "45 min" }, { 60, "60 min" }, { 120, "2h" } }, get = g, set = s })
+
+	add({ type = "header", text = L["Zone stories"] })
+	g, s = opt("stories", "enabled")
+	add({ type = "check", label = L["Zone-story achievements as epics"], tip = L["Found in the achievement list at runtime; completion dates appear on the roadmap."], get = g, set = s })
+	add({ type = "button", label = L["Search zone stories again"], fn = function() if SoA.Stories then SoA.Stories:Scan(true) end end })
+
+	add({ type = "header", text = L["Quest tracker (without CasterKit)"] })
+	g, s = opt("tracker2", "enabled")
+	add({ type = "check", label = L["Show SoA's quest tracker"], tip = L["Only shown when no partner tracker (CasterKit) is active."], get = g, set = s })
+	g, s = opt("tracker2", "content")
+	add({ type = "choice", label = L["Tracker shows"], opts = { { "auto", L["Automatic"] }, { "sprint", L["Sprint"] },
+		{ "doing", L["In progress + Ready"] }, { "all", L["All tracked"] } }, get = g, set = s })
+	g, s = opt("tracker2", "scale")
+	add({ type = "slider", label = L["Tracker scale"], min = 0.6, max = 1.5, step = 0.05, get = g, set = s, fmt = function(v) return ("%d%%"):format(v * 100 + 0.5) end })
+	g, s = opt("tracker2", "maxRows")
+	add({ type = "choice", label = L["Tracker rows"], opts = { { 5, "5" }, { 8, "8" }, { 12, "12" }, { 16, "16" }, { 20, "20" }, { 30, "30" } }, get = g, set = s })
+	g, s = opt("tracker2", "locked")
+	add({ type = "check", label = L["Lock the tracker (no moving or resizing)"], get = g, set = s })
+	g, s = opt("tracker2", "hideBlizzard")
+	add({ type = "check", label = L["Hide Blizzard's quest tracker"], tip = L["Never in combat. Type /reload to bring it back after turning this off."], get = g, set = s })
 
 	add({ type = "header", text = L["Language"] })
 	add({ type = "choice", label = L["Language"], opts = { { "auto", L["Automatic"] }, { "enUS", "English" }, { "nlNL", "Nederlands" } },
@@ -157,6 +200,34 @@ local function buildInto(parent, width)
 			end
 			widgets[#widgets + 1] = holder
 			y = y - 26
+		elseif o.type == "slider" then
+			local fs = S:Font(parent, 11)
+			fs:SetPoint("TOPLEFT", 12, y - 3)
+			fs:SetText(o.label)
+			local holder = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+			holder:SetSize(170, 20)
+			holder:SetPoint("TOPRIGHT", parent, "TOPLEFT", width - 12, y)
+			S:Backdrop(holder, 1)
+			local text = S:Font(holder, 11)
+			text:SetPoint("CENTER")
+			holder.refresh = function() local v = num(o.get(), o.min) text:SetText(o.fmt and o.fmt(v) or tostring(v)) end
+			for _, d in ipairs({ { -1, "LEFT", "<" }, { 1, "RIGHT", ">" } }) do
+				local a = CreateFrame("Button", nil, holder)
+				a:SetSize(20, 20)
+				a:SetPoint(d[2])
+				local t = S:Font(a, 12)
+				t:SetPoint("CENTER")
+				t:SetText(d[3])
+				t:SetTextColor(unpack(S.colors.accent))
+				a:SetScript("OnClick", function()
+					local v = num(o.get(), o.min) + d[1] * o.step
+					v = math.max(o.min, math.min(o.max, math.floor(v / o.step + 0.5) * o.step))
+					o.set(v)
+					holder.refresh()
+				end)
+			end
+			widgets[#widgets + 1] = holder
+			y = y - 26
 		elseif o.type == "button" then
 			local b = S:Button(parent, o.label, 200, 20, o.fn)
 			b:SetPoint("TOPLEFT", 12, y)
@@ -214,12 +285,15 @@ function C:ToggleOwn()
 		title:SetTextColor(unpack(S.gold))
 		local close = S:Button(f, "X", 22, 20, function() f:Hide() end)
 		close:SetPoint("TOPRIGHT", -8, -8)
-		local body = CreateFrame("Frame", nil, f)
-		body:SetPoint("TOPLEFT", 0, -32)
-		body:SetSize(460, 10)
-		local widgets, h = buildInto(body, 460)
+		local sc, body = S:ScrollArea(f)
+		sc:SetPoint("TOPLEFT", 0, -32)
+		sc:SetPoint("BOTTOMRIGHT", -4, 8)
+		body:SetWidth(460)
+		local widgets, h = buildInto(body, 456)
+		body:SetHeight(h)
 		sets[#sets + 1] = widgets
-		f:SetSize(460, h + 44)
+		f:SetSize(470, math.min(600, h + 44))
+		f:SetScript("OnShow", function() sc:Refresh() end)
 		f:SetPoint("CENTER")
 		f:Hide()
 		C.frame = f
@@ -231,9 +305,14 @@ function C:OnEnable()
 	-- Blizzard settings, AddOns tab
 	if type(_G.CasterKit) ~= "table" and Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
 		local panel = CreateFrame("Frame")
-		local widgets = buildInto(panel, 520)
+		local sc, body = SoA.Style:ScrollArea(panel)
+		sc:SetPoint("TOPLEFT", 0, 0)
+		sc:SetPoint("BOTTOMRIGHT", -4, 0)
+		body:SetWidth(520)
+		local widgets, h = buildInto(body, 516)
+		body:SetHeight(h)
 		sets[#sets + 1] = widgets
-		panel:SetScript("OnShow", function() C:Refresh() end)
+		panel:SetScript("OnShow", function() C:Refresh() sc:Refresh() end)
 		pcall(function()
 			local cat = Settings.RegisterCanvasLayoutCategory(panel, "Scrum of Azeroth")
 			Settings.RegisterAddOnCategory(cat)

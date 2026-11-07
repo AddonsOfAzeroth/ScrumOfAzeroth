@@ -127,6 +127,98 @@ function S:Short(n)
 	return s:gsub("%.", SoA.L["decimal"]) .. "k"
 end
 
+-- Scroll area with a slim scrollbar on the right. Set the content height, then
+-- call scroll:Refresh(). The wheel is only taken when there is something to scroll.
+function S:ScrollArea(parent)
+	local sc = CreateFrame("ScrollFrame", nil, parent)
+	local content = CreateFrame("Frame", nil, sc)
+	content:SetSize(10, 10)
+	sc:SetScrollChild(content)
+	local bar = CreateFrame("Slider", nil, parent)
+	bar:SetOrientation("VERTICAL")
+	bar:SetWidth(5)
+	bar:SetPoint("TOPRIGHT", sc, "TOPRIGHT", 0, 0)
+	bar:SetPoint("BOTTOMRIGHT", sc, "BOTTOMRIGHT", 0, 0)
+	local bg = bar:CreateTexture(nil, "BACKGROUND")
+	bg:SetAllPoints()
+	bg:SetColorTexture(1, 1, 1, 0.06)
+	bar:SetThumbTexture(self.flat)
+	local thumb = bar:GetThumbTexture()
+	thumb:SetSize(5, 24)
+	thumb:SetVertexColor(self.colors.accent[1], self.colors.accent[2], self.colors.accent[3], 0.8)
+	bar:SetMinMaxValues(0, 0)
+	bar:SetValueStep(1)
+	bar:SetValue(0)
+	bar:Hide()
+	bar:SetScript("OnValueChanged", function(_, v)
+		if not sc.syncing then sc:SetVerticalScroll(v) end
+	end)
+	local function sync()
+		sc.syncing = true
+		bar:SetValue(sc:GetVerticalScroll() or 0)
+		sc.syncing = false
+	end
+	sc:SetScript("OnMouseWheel", function(f, delta)
+		local max = f:GetVerticalScrollRange() or 0
+		f:SetVerticalScroll(math.max(0, math.min(max, (f:GetVerticalScroll() or 0) - delta * 40)))
+		sync()
+	end)
+	function sc:Refresh()
+		if self.UpdateScrollChildRect then self:UpdateScrollChildRect() end
+		local h = self:GetHeight() or 0
+		local ch = content:GetHeight() or 0
+		local max = math.max(0, ch - h)
+		if (self:GetVerticalScroll() or 0) > max then self:SetVerticalScroll(max) end
+		bar:SetMinMaxValues(0, max)
+		bar:SetShown(max > 0)
+		self:EnableMouseWheel(max > 0)
+		if ch > 0 then thumb:SetHeight(math.max(16, h * h / ch)) end
+		sync()
+	end
+	-- scroll so that [top, bottom] (offsets from the content top) is visible
+	function sc:ShowRange(top, bottom)
+		local h = self:GetHeight() or 0
+		local cur = self:GetVerticalScroll() or 0
+		if top < cur then self:SetVerticalScroll(top)
+		elseif bottom > cur + h then self:SetVerticalScroll(math.max(0, bottom - h)) end
+		self:Refresh()
+	end
+	sc.content, sc.bar = content, bar
+	return sc, content, bar
+end
+
+-- Small chain-link icon (two overlapping hollow links) drawn from flat textures.
+function S:ChainIcon(parent)
+	local f = CreateFrame("Button", nil, parent)
+	f:SetSize(14, 9)
+	f.tex = {}
+	for link = 0, 1 do
+		local x0 = link * 6
+		for _, e in ipairs({ { x0, 0, 8, 1 }, { x0, -8, 8, 1 }, { x0, 0, 1, 9 }, { x0 + 7, 0, 1, 9 } }) do
+			local t = f:CreateTexture(nil, "OVERLAY")
+			t:SetColorTexture(1, 1, 1, 1)
+			t:SetPoint("TOPLEFT", f, "TOPLEFT", e[1], e[2])
+			t:SetSize(e[3], e[4])
+			f.tex[#f.tex + 1] = t
+		end
+	end
+	function f:SetColor(r, g, b) for _, t in ipairs(self.tex) do t:SetVertexColor(r, g, b) end end
+	f:SetColor(unpack(self.colors.accent))
+	return f
+end
+
+-- Colour of an item quality (r, g, b).
+function S:Quality(q)
+	q = SoA.num(q)
+	if q and C_Item and C_Item.GetItemQualityColor then
+		local r, g, b = SoA.try(C_Item.GetItemQualityColor, q)
+		if SoA.num(r) then return r, g, b end
+	end
+	local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
+	if c and c.r then return c.r, c.g, c.b end
+	return 0.6, 0.6, 0.6
+end
+
 -- Minutes as "14 min" or "1h05"
 function S:Minutes(m)
 	m = SoA.num(m, 0)

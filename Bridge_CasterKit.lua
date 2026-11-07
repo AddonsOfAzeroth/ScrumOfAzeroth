@@ -154,6 +154,35 @@ function Bridge.PointTo(m, x, y, title)
 	return call(c.Arrow, "SetTarget", m, x, y, title)
 end
 
+-- Route strategy ("balanced", "turnin", "quest", "nearest"): Roads API, else CasterKit's planner.
+Bridge.STRATEGY_LABEL = { balanced = "Balanced", turnin = "Turn in first", quest = "Quest first", nearest = "Nearest" }
+
+function Bridge.RouteStrategies()
+	local ok, list = roads("GetRouteStrategies")
+	if ok and type(list) == "table" then return list end
+	local qp = QP()
+	if qp and type(qp.STRATEGIES) == "table" then return qp.STRATEGIES end
+end
+
+function Bridge.GetRouteStrategy()
+	local ok, s = roads("GetRouteStrategy")
+	if not ok then ok, s = call(QP(), "Strategy") end
+	return ok and type(s) == "string" and s or nil
+end
+
+function Bridge.SetRouteStrategy(key)
+	if roads("SetRouteStrategy", key) then return true end
+	return call(QP(), "SetStrategy", key)
+end
+
+-- A partner quest tracker is shown (CasterKit's tracker, or Roads of Azeroth's).
+function Bridge.PartnerTracker()
+	local ok, v = roads("HasTracker")
+	if ok and v then return true end
+	local c = CK()
+	return c ~= nil and type(c.Quests) == "table" and type(c.char.quests) == "table" and c.char.quests.enabled ~= false
+end
+
 function Bridge.GetTravelEstimate(questID)
 	local r = Bridge.GetRoute()
 	return r and r[questID] and r[questID].distance or nil
@@ -183,7 +212,9 @@ local function listenPartners()
 		end)
 		c:Listen("QUESTPLAN", function() SoA.Model:Dirty() SoA:Fire("MODEL_CHANGED") end)
 		c:Listen("NAV", function() SoA:Fire("SETTINGS") end)
-		c:Listen("SETTINGS", function(group) if group == "quests" then SoA.Model:Dirty() SoA:Fire("SPRINT") end end)
+		c:Listen("SETTINGS", function(group)
+			if group == "quests" then SoA.Model:Dirty() SoA:Fire("SPRINT") SoA:Fire("PARTNERS") end
+		end)
 	end
 	local api = Roads()
 	if api and api.RegisterCallback and not Bridge.roadsListening then
@@ -242,6 +273,8 @@ function P:EpicTooltip(tt, key)
 	if key == "loose" then
 		tt:SetText(L["Loose tasks"], 0.6, 0.65, 0.71)
 		tt:AddLine(L["Quests without a questline."], 1, 1, 1, true)
+	elseif type(key) == "string" and key:sub(1, 3) == "st:" then
+		if not (SoA.Stories and SoA.Stories:Tooltip(tt, SoA.Stories:ByKey(key))) then return false end
 	else
 		local e = SoA.Epics:ByKey(key)
 		if not (e and SoA.Epics:Tooltip(tt, e)) then return false end
@@ -293,20 +326,35 @@ function P:SharedWith(questID)
 	local it = m and m.byKey[questID]
 	return it and it.shared and it.shared.partnerKey or nil
 end
+-- a click on a quest in the partner tracker: open the board with its details
+function P:OnQuestClick(questID)
+	if SoA.Detail then SoA.Detail:OpenFromTracker(num(questID)) end
+end
 
+-- All SoA settings on CasterKit's page, in a scroll area (CasterKit's own widgets).
 local function configPage(page)
 	local L = SoA.L
-	page:Note(L["Settings of the Scrum of Azeroth add-on. All options: /soa config."])
+	local S = SoA.Style
+	local mt = getmetatable(page)
+	local holder = page.frame
+	local sc, content = S:ScrollArea(holder)
+	sc:SetPoint("TOPLEFT", 0, 0)
+	sc:SetPoint("BOTTOMRIGHT", 0, 0)
+	content:SetWidth(470)
+	local sub = setmetatable({ frame = content, y = 0, widgets = page.widgets }, mt)
+	sub:Note(L["All settings of the Scrum of Azeroth add-on."])
 	for _, o in ipairs(SoA.Config:Options()) do
-		if o.ck then
-			if o.type == "header" then page:Header(o.text)
-			elseif o.type == "check" then page:Check(o.label, o.tip, o.get, o.set)
-			elseif o.type == "choice" then page:Choice(o.label, o.opts, o.get, o.set)
-			elseif o.type == "button" then page:Button(o.label, o.fn, 200)
-			end
+		if o.type == "header" then sub:Gap(4) sub:Header(o.text)
+		elseif o.type == "check" then sub:Check(o.label, o.tip, o.get, o.set)
+		elseif o.type == "choice" then sub:Choice(o.label, o.opts, o.get, o.set)
+		elseif o.type == "slider" and sub.Slider then sub:Slider(o.label, o.min, o.max, o.step, o.get, o.set, o.fmt)
+		elseif o.type == "button" then sub:Button(o.label, o.fn, 220)
+		elseif o.type == "note" then sub:Note(o.text)
 		end
 	end
-	page:Button(L["All settings"], function() SoA.Config:ShowOwn() end, 200)
+	content:SetHeight(-sub.y + 10)
+	holder:HookScript("OnShow", function() sc:Refresh() end)
+	C_Timer.After(0, function() sc:Refresh() end)
 end
 
 ---------------------------------------------------------------------------
@@ -346,6 +394,7 @@ function Bridge:Attach()
 	Bridge.attached = true
 	SoA.Model:Dirty()
 	SoA:Fire("MODEL_CHANGED")
+	SoA:Fire("PARTNERS") -- the compact tracker hides itself when a partner tracker is there
 end
 
 local function refreshPartner()

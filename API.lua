@@ -5,7 +5,7 @@
 local _, ns = ...
 local SoA = ns.SoA
 
-local API = { version = 1 }
+local API = { version = 2 }
 SoA.API = API
 
 local CBH = LibStub and LibStub("CallbackHandler-1.0", true)
@@ -64,7 +64,14 @@ function API.IsOnHold(key) return SoA.char ~= nil and SoA.Hold:Get(key) ~= nil e
 function API.GetEpic(questID)
 	if not SoA.char then return end
 	local e = SoA.Epics:Get(questID)
+	if not e and SoA.Stories then e = SoA.Stories:ForQuest(questID) end -- zone story when there is no questline
 	if e then return { key = e.key, name = e.name, color = e.color, done = e.done, total = e.total, tag = e.tag } end
+end
+
+-- Activity per ticket (questID or "t:n"): fights, avgDps, downPct, deaths, active seconds, ...
+function API.GetActivity(key)
+	if not (SoA.char and SoA.Activity) then return end
+	return SoA.Activity:Stats(key)
 end
 
 function API.GetEstimate(questID)

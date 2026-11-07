@@ -206,6 +206,12 @@ function Est:Quest(q, distance)
 		secs, lo, hi = secs + self.TURNIN, lo + self.TURNIN, hi + self.TURNIN * 2
 	else
 		local kt, kn = self:KillTime()
+		-- this quest's own fights (Activity.lua), once there are a few
+		local Act = SoA.Activity
+		if Act and Act:Enabled() then
+			local qkt, qn = Act:KillTimeFor(q.id)
+			if qkt and qn >= 3 then kt, kn = qkt, math.max(kn, qn) end
+		end
 		for _, o in ipairs(q.objectives or {}) do
 			if not o.done then
 				local rem
@@ -300,6 +306,7 @@ local function near(questID)
 	local qm = GetQuestUiMapID and num((try(GetQuestUiMapID, questID, true)))
 	return qm ~= nil and qm == SoA:PlayerMap()
 end
+Est.Near = near
 
 -- Compare objectives with the last scan: progress steps teach the rates.
 function Est:Scan()
@@ -314,7 +321,17 @@ function Est:Scan()
 			local have, pct = o.have or 0, o.pct or 0
 			if p then
 				local delta = have - p.have
-				if (delta > 0 or pct > p.pct) and not p.fresh then noteIncrement(q.id, o) end
+				if (delta > 0 or pct > p.pct) and not p.fresh then
+					noteIncrement(q.id, o)
+					if delta > 0 then
+						SoA:Fire("OBJECTIVE", q.id, o.index, o.kind, delta, have, o.need, o.text)
+					else
+						SoA:Fire("OBJECTIVE", q.id, o.index, o.kind, pct - p.pct, pct, 100, o.text)
+					end
+				elseif delta < 0 and o.kind == "item" and not p.fresh then
+					-- a genuine regression (an item lost)
+					SoA:Fire("OBJECTIVE_LOST", q.id, o.index, o.kind, -delta, o.text)
+				end
 				if o.kind == "item" and delta > 0 then
 					local d = l.drops[key]
 					if type(d) ~= "table" then d = { enc = 0, drops = 0 } l.drops[key] = d end
@@ -342,21 +359,45 @@ local function onCombatStart()
 	wipe(fightInc)
 end
 
+local function encounter(key)
+	local l = db()
+	local d = l.drops[key]
+	if type(d) ~= "table" then d = { enc = 0, drops = 0 } l.drops[key] = d end
+	d.enc = num(d.enc, 0) + 1
+end
+
+-- One drop attempt for every unfinished item objective of a quest close by.
+function Est:NoteNearEncounters()
+	for key, p in pairs(prev) do
+		if p.kind == "item" and not p.done and near(p.quest) then encounter(key) end
+	end
+end
+
+-- One drop attempt for the unfinished item objectives of one quest (a fight
+-- that Activity.lua attributed to it by objective progress or the target).
+function Est:NoteEncounter(questID)
+	for key, p in pairs(prev) do
+		if p.quest == questID and p.kind == "item" and not p.done then encounter(key) end
+	end
+end
+
+-- Seconds per kill with the measured downtime (from Activity.lua).
+function Est:LearnFight(secs)
+	secs = num(secs)
+	if secs then ema(db().kill, secs, 6, 200) end
+end
+
 local function onCombatEnd()
 	if not fightStart then return end
 	local dur = GetTime() - fightStart
 	fightStart = nil
 	fightEnd = GetTime()
+	-- with activity tracking the kill time uses the measured downtime and drop
+	-- attempts go to the quests the fight was attributed to (Activity.lua)
+	if SoA.Activity and SoA.Activity:Enabled() then return end
 	local l = db()
 	if dur >= 2 and dur <= 180 then ema(l.kill, dur + Est.DOWNTIME, 6, 200) end
-	-- one encounter for every unfinished item objective of a quest close by
-	for key, p in pairs(prev) do
-		if p.kind == "item" and not p.done and near(p.quest) then
-			local d = l.drops[key]
-			if type(d) ~= "table" then d = { enc = 0, drops = 0 } l.drops[key] = d end
-			d.enc = num(d.enc, 0) + 1
-		end
-	end
+	Est:NoteNearEncounters()
 end
 
 -- Every second: travel speed (out of combat, on the ground or mounted) and time split.

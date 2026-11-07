@@ -192,6 +192,7 @@ end
 
 function Hd:Put(key, reason, text, prevStatus, title)
 	hdb()[key] = { reason = reason, text = str(text), at = time(), prev = prevStatus }
+	if SoA.Activity then SoA.Activity:Event(key, "hold", { reason = reason, note = str(text) }) end
 	local SP = SoA.Sprint
 	if SP and SP:IsActive() and (SP:Contains(key) or SP.Data().est[key]) then
 		SP.Data().held = SP.Data().held or {}
@@ -210,6 +211,7 @@ end
 function Hd:Resume(key)
 	local h = self:Get(key)
 	hdb()[key] = nil
+	if h and SoA.Activity then SoA.Activity:Event(key, "resumed") end
 	if h and h.prev and SoA.Tickets and SoA.Tickets:Get(key) then
 		SoA.Tickets:Get(key).status = h.prev
 	end

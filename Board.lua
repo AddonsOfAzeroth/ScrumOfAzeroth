@@ -5,6 +5,10 @@ local SoA = ns.SoA
 local num, str, flag, try = SoA.num, SoA.str, SoA.flag, SoA.try
 
 local B = SoA:NewModule("Board")
+local A = SoA.Actions
+B.cardByKey = {} -- key -> card frame (current render), for partner highlight and focus
+B.expanded = {}  -- combo cards that are opened (session only)
+local passes     -- filter test (defined below)
 
 local W, H = 1000, 580
 local HEAD_H, INFO_H, STRIP_H, FOOT_H = 30, 18, 46, 18
@@ -148,22 +152,39 @@ local function showMenu(anchor, entries, withNote)
 	menu:Show()
 end
 
-local function itemMenu(anchor, it)
-	local L, P, Bl = SoA.L, SoA.Priority, SoA.Blockers
-	local entries = { { text = L["Priority"], header = true } }
-	for lvl = 1, 5 do
-		entries[#entries + 1] = { text = (it.priority == lvl and "> " or "   ") .. P:Name(lvl), color = P:Color(lvl),
-			fn = function() P:SetManual(it.key, lvl) B:NotifyCK() end }
+B.ShowMenu = showMenu
+B.HideMenu = hideMenu
+B.PrioIcon = prioIcon
+B.SetPrio = setPrio
+
+local MOVE_TO = { { "todo", "To do" }, { "doing", "In progress" }, { "ready", "Ready" } }
+
+-- "Move to..." entries (manual status move of a quest or ticket)
+local function moveEntries(entries, it)
+	local L = SoA.L
+	if not (it.kind == "quest" or it.kind == "ticket") then return end
+	entries[#entries + 1] = { text = L["Move to..."], header = true }
+	for _, s in ipairs(MOVE_TO) do
+		entries[#entries + 1] = { text = (it.column == s[1] and "> " or "   ") .. L[s[2]], fn = function() SoA.Flow:MoveTo(it, s[1]) B:NotifyCK() end }
 	end
-	entries[#entries + 1] = { text = "   " .. L["Reset to automatic"], fn = function() P:SetManual(it.key, nil) B:NotifyCK() end }
-	entries[#entries + 1] = { text = L["Blocker (note below)"], header = true }
-	for _, r in ipairs(Bl.REASONS) do
-		entries[#entries + 1] = { text = "   " .. L[r], fn = function(note) Bl:SetManual(it.key, r, note) end }
+	if it.kind == "ticket" then
+		entries[#entries + 1] = { text = (it.column == "done" and "> " or "   ") .. L["Done"], fn = function() SoA.Flow:MoveTo(it, "done") end }
 	end
-	if Bl:Manual(it.key) then
-		entries[#entries + 1] = { text = "   " .. L["Unblock"], color = SoA.Style.green, fn = function() Bl:SetManual(it.key, nil) end }
+	if (it.kind == "quest" and it.manualStatus) or (it.kind == "ticket" and it.ticket and it.ticket.manual) then
+		entries[#entries + 1] = { text = "   " .. L["Resume automatic"], color = SoA.Style.colors.accent, fn = function()
+			if it.kind == "quest" then SoA.Flow:ResumeAuto(it.id) else SoA.Tickets:ResumeAuto(it.key) end
+		end }
 	end
-	local Hd = SoA.Hold
+end
+
+function B.MoveMenu(anchor, it)
+	local entries = {}
+	moveEntries(entries, it)
+	if #entries > 0 then showMenu(anchor, entries) end
+end
+
+local function holdEntries(entries, it)
+	local L, Hd = SoA.L, SoA.Hold
 	local h = Hd:Get(it.key)
 	entries[#entries + 1] = { text = L["On hold (note below)"], header = true }
 	if h then
@@ -178,40 +199,91 @@ local function itemMenu(anchor, it)
 				fn = function(note) Hd:Put(it.key, r, note, it.ticket and it.ticket.status, it.title) end }
 		end
 	end
-	if it.kind == "ticket" and it.ticket and it.ticket.manual then
-		entries[#entries + 1] = { text = L["Resume automatic"], color = SoA.Style.colors.accent, fn = function() SoA.Tickets:ResumeAuto(it.key) end }
+end
+
+function B.HoldMenu(anchor, it)
+	local entries = {}
+	holdEntries(entries, it)
+	showMenu(anchor, entries, true)
+end
+
+local function itemMenu(anchor, it)
+	local L, P, Bl = SoA.L, SoA.Priority, SoA.Blockers
+	if it.kind == "combo" then it = it.members[1] end
+	local entries = {}
+	entries[#entries + 1] = { text = L["Details"], color = SoA.Style.colors.accent, fn = function() SoA.Detail:Open(it) end }
+	if it.epicKey and it.epicKey ~= "loose" and not it.epicKey:find("^lb:") then
+		entries[#entries + 1] = { text = L["Epic details"], color = it.color, fn = function() SoA.Detail:OpenEpic(it.epicKey) end }
 	end
+	if it.kind == "quest" then
+		entries[#entries + 1] = { text = L["Open in quest log"], fn = function() A.Open(it.id, it.index) end }
+	elseif it.kind == "ticket" then
+		entries[#entries + 1] = { text = L["Edit ticket"], fn = function() SoA.Tickets:OpenDialog(it.key) end }
+	end
+	if it.kind ~= "quest" and it.kind ~= "ticket" then
+		showMenu(anchor, entries)
+		return
+	end
+	moveEntries(entries, it)
+	entries[#entries + 1] = { text = L["Priority"], header = true }
+	for lvl = 1, 5 do
+		entries[#entries + 1] = { text = (it.priority == lvl and "> " or "   ") .. P:Name(lvl), color = P:Color(lvl),
+			fn = function() P:SetManual(it.key, lvl) B:NotifyCK() end }
+	end
+	entries[#entries + 1] = { text = "   " .. L["Reset to automatic"], fn = function() P:SetManual(it.key, nil) B:NotifyCK() end }
+	entries[#entries + 1] = { text = L["Blocker (note below)"], header = true }
+	for _, r in ipairs(Bl.REASONS) do
+		entries[#entries + 1] = { text = "   " .. L[r], fn = function(note) Bl:SetManual(it.key, r, note) end }
+	end
+	if Bl:Manual(it.key) then
+		entries[#entries + 1] = { text = "   " .. L["Unblock"], color = SoA.Style.green, fn = function() Bl:SetManual(it.key, nil) end }
+	end
+	holdEntries(entries, it)
 	local m = Bl:Manual(it.key)
 	showMenu(anchor, entries, (m and m.text) or true)
 end
+B.ItemMenu = itemMenu
 
 ---------------------------------------------------------------------------
 -- Click actions
 ---------------------------------------------------------------------------
-local A = SoA.Actions
+-- Shared by cards, list rows and the compact tracker:
+-- click: select / point + details · shift-click: GPS stop · right-click: card menu.
+function B.ClickItem(it, button, anchor, fromTracker)
+	if not it then return end
+	hideMenu()
+	if it.kind == "combo" then
+		if button == "RightButton" then itemMenu(anchor, it) return end
+		B.expanded[it.key] = not B.expanded[it.key]
+		B:Schedule(true)
+		return
+	end
+	if button == "RightButton" then itemMenu(anchor, it) return end
+	local shift = IsShiftKeyDown()
+	if it.kind == "quest" then
+		if shift then A.AddStop(it.id, it.title) return end
+		A.Select(it.id, it.title)
+	elseif it.kind == "avail" then
+		if it.mapID and it.x and it.y then
+			if shift then A.AddPointStop(it.mapID, it.x, it.y, it.title) return end
+			A.PointTo(it.mapID, it.x, it.y, it.title)
+		end
+	elseif it.kind == "ticket" then
+		if it.map then
+			if shift then A.AddPointStop(it.map.m, it.map.x, it.map.y, it.title) return end
+			A.PointTo(it.map.m, it.map.x, it.map.y, it.title)
+		end
+	end
+	if fromTracker and (it.kind == "quest" or it.kind == "ticket") then
+		SoA.Detail:OpenFromTracker(it.kind == "quest" and it.id or it.key, anchor)
+	else
+		SoA.Detail:Open(it)
+	end
+	B:Schedule()
+end
 
 local function onCardClick(self, button)
-	SoA.guard("card click", function()
-		local it = self.item
-		if not it then return end
-		hideMenu()
-		local shift = IsShiftKeyDown()
-		if it.kind == "quest" then
-			if button == "RightButton" then A.Open(it.id, it.index)
-			elseif shift then A.AddStop(it.id, it.title)
-			else A.Select(it.id, it.title) end
-		elseif it.kind == "avail" then
-			if it.mapID and it.x and it.y then
-				if shift then A.AddPointStop(it.mapID, it.x, it.y, it.title) else A.PointTo(it.mapID, it.x, it.y, it.title) end
-			end
-		elseif it.kind == "ticket" then
-			if button == "RightButton" then SoA.Tickets:OpenDialog(it.key)
-			elseif it.map then
-				if shift then A.AddPointStop(it.map.m, it.map.x, it.map.y, it.title) else A.PointTo(it.map.m, it.map.x, it.map.y, it.title) end
-			end
-		end
-		B:Schedule()
-	end)
+	SoA.guard("card click", B.ClickItem, self.item, button, self)
 end
 
 local function cardTooltip(self)
@@ -246,13 +318,17 @@ local function cardTooltip(self)
 		if it.turnIn then GameTooltip:AddLine(L["Turn in: %s"]:format(it.turnIn), 0.3, 0.9, 0.3, true) end
 		if it.onHold then GameTooltip:AddLine(L["On hold"] .. ": " .. (it.holdText or ""), 1, 0.82, 0, true) end
 		if it.shared and it.shared.note then GameTooltip:AddLine(it.shared.note, 0.41, 0.8, 0.94, true) end
+		if it.story and it.story ~= it.epic then GameTooltip:AddLine(L["Zone story"] .. ": " .. (it.story.name or "?"), it.story.color[1], it.story.color[2], it.story.color[3]) end
+		if it.holdHint then GameTooltip:AddLine(L["No progress for a while: put it on hold?"], 1, 0.82, 0, true) end
 		GameTooltip:AddLine(" ")
-		if it.kind == "quest" then
-			GameTooltip:AddLine(L["Click: select quest · Shift-click: add as GPS stop · Right-click: open in quest log"], 0.6, 0.65, 0.71, true)
+		if it.kind == "combo" then
+			GameTooltip:AddLine(L["Click: show or hide the two quests · Right-click: menu"], 0.6, 0.65, 0.71, true)
+		elseif it.kind == "quest" then
+			GameTooltip:AddLine(L["Click: select quest and show details · Shift-click: add as GPS stop · Right-click: menu"], 0.6, 0.65, 0.71, true)
 		elseif it.kind == "avail" then
 			GameTooltip:AddLine(L["Click: point to the quest giver · Shift-click: add as GPS stop"], 0.6, 0.65, 0.71, true)
 		elseif it.kind == "ticket" then
-			GameTooltip:AddLine(L["Right-click: edit ticket · Click a step to tick it"], 0.6, 0.65, 0.71, true)
+			GameTooltip:AddLine(L["Click: details · Right-click: menu · Click a step to tick it"], 0.6, 0.65, 0.71, true)
 		end
 		GameTooltip:Show()
 	end)
@@ -381,6 +457,41 @@ local function newCard(col)
 	c.hover.b2:HookScript("OnLeave", function() cardLeave(c) end)
 	c.action:HookScript("OnLeave", function() cardLeave(c) end)
 	c.hover:Hide()
+	-- shared mobs: chain icon; hovering it highlights the partner card
+	c.chain = S:ChainIcon(c)
+	c.chain:SetPoint("RIGHT", c.xp, "LEFT", -4, 0)
+	c.chain:SetScript("OnEnter", function(btn)
+		local it = c.item
+		local pk = it and it.shared and it.shared.partnerKey
+		local p = pk and B.cardByKey[pk]
+		if p and p:IsShown() then
+			p:SetBackdropBorderColor(1, 0.82, 0, 1)
+			B.highlighted = p
+		end
+		GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
+		GameTooltip:AddLine(L["Shares mobs with %s"]:format(it and it.shared and it.shared.partner or "?"), 0.41, 0.8, 0.94, true)
+		GameTooltip:Show()
+	end)
+	c.chain:SetScript("OnLeave", function(btn)
+		if B.highlighted then
+			local p = B.highlighted
+			B.highlighted = nil
+			if p.baseBorder then p:SetBackdropBorderColor(unpack(p.baseBorder)) end
+		end
+		if GameTooltip:IsOwned(btn) then GameTooltip:Hide() end
+	end)
+	-- the quest's usable item (display only)
+	c.itemIcon = c:CreateTexture(nil, "OVERLAY")
+	c.itemIcon:SetSize(14, 14)
+	c.itemIcon:SetPoint("TOPRIGHT", -CARD_PAD, -CARD_PAD - 12)
+	c.itemIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	-- "Put on hold?" hint (opens the hold menu; never puts anything on hold by itself)
+	c.holdBtn = S:Button(c, L["Put on hold?"], 90, 16)
+	c.holdBtn.text:SetFont(S.font, 10, "OUTLINE")
+	c.holdBtn.text:SetTextColor(1, 0.82, 0)
+	c.holdBtn:SetScript("OnClick", function(btn) if c.item then B.HoldMenu(btn, c.item) end end)
+	c.holdBtn:HookScript("OnLeave", function() cardLeave(c) end)
+	c.holdBtn:Hide()
 	return c
 end
 
@@ -422,9 +533,12 @@ local function fillCard(c, it, width, opts)
 	local showPrio = it.kind == "quest" or it.kind == "ticket"
 	c.prio:SetShown(showPrio)
 	if showPrio then setPrio(c.prio, it.priority or 3, it.pinned) end
+	c.chain:SetShown(it.shared ~= nil or it.kind == "combo")
+	c.itemIcon:SetShown(it.itemTex ~= nil)
+	if it.itemTex then c.itemIcon:SetTexture(it.itemTex) end
 	local title = it.title or "?"
 	if it.kind == "quest" and it.showLevel then title = "[" .. it.showLevel .. "] " .. title end
-	c.title:SetWidth(width - CARD_PAD * 2 - 19)
+	c.title:SetWidth(width - CARD_PAD * 2 - 19 - (it.itemTex and 16 or 0))
 	c.title:SetText(title)
 	local dim = it.kind == "done" or it.kind == "upcoming" or (it.onHold and not it.resumeReady)
 	if dim then c.title:SetTextColor(0.6, 0.6, 0.6) else c.title:SetTextColor(1, 1, 1) end
@@ -484,14 +598,24 @@ local function fillCard(c, it, width, opts)
 	c.action:Hide()
 	c.hoverOn = false
 	c.hover:Hide()
+	c.holdBtn:Hide()
 	if opts.add then
 		c.action.text:SetText(L["+ Add to sprint"])
 		c.action:SetScript("OnClick", function() SoA.Sprint:Add(it.key) B:NotifyCK() end)
 		c.action:ClearAllPoints()
 		c.action:SetPoint("TOPLEFT", CARD_PAD + 3, -(y + 2))
 		c.action:Show()
-		y = y + 20
 	end
+	if it.holdHint and not it.onHold then
+		c.holdBtn:ClearAllPoints()
+		if opts.add then
+			c.holdBtn:SetPoint("LEFT", c.action, "RIGHT", 4, 0)
+		else
+			c.holdBtn:SetPoint("TOPLEFT", CARD_PAD + 3, -(y + 2))
+		end
+		c.holdBtn:Show()
+	end
+	if opts.add or (it.holdHint and not it.onHold) then y = y + 20 end
 	local b1, b2 = c.hover.b1, c.hover.b2
 	b2:Hide()
 	if opts.remove then
@@ -515,13 +639,17 @@ local function fillCard(c, it, width, opts)
 
 	-- selection and dimming
 	local sel = it.kind == "quest" and A.Selected and A.Selected() == it.id
-	if sel or opts.proposed then
-		c:SetBackdropBorderColor(unpack(S.colors.accent))
+	local shown = SoA.Detail and SoA.Detail:IsShowing(it.kind == "quest" and it.id or it.key)
+	if shown then
+		c.baseBorder = { 1, 0.82, 0, 1 }
+	elseif sel or opts.proposed then
+		c.baseBorder = { S.colors.accent[1], S.colors.accent[2], S.colors.accent[3], 1 }
 	elseif it.blocked and it.kind ~= "upcoming" then
-		c:SetBackdropBorderColor(0.6, 0.15, 0.15, 1)
+		c.baseBorder = { 0.6, 0.15, 0.15, 1 }
 	else
-		c:SetBackdropBorderColor(0, 0, 0, 1)
+		c.baseBorder = { 0, 0, 0, 1 }
 	end
+	c:SetBackdropBorderColor(unpack(c.baseBorder))
 	c:SetAlpha(dim and 0.55 or 1)
 	local h = y + CARD_PAD
 	c:SetHeight(h)
@@ -554,6 +682,9 @@ local function layout(col, rows, opts)
 			c:SetPoint("TOPLEFT", col.content, "TOPLEFT", 0, -y)
 			local h = fillCard(c, row.item, width, row.opts or opts or {})
 			c:Show()
+			c.col, c.top, c.bottom = col, y, y + h
+			B.cardByKey[row.item.key] = c
+			if row.item.kind == "quest" then B.cardByKey[row.item.id] = c end
 			y = y + h + 4
 		end
 	end
@@ -563,6 +694,49 @@ local function layout(col, rows, opts)
 	local max = math.max(0, y - ((col.scroll:GetHeight() or 0)))
 	if (col.scroll:GetVerticalScroll() or 0) > max then col.scroll:SetVerticalScroll(max) end
 	if col.scroll.UpdateScrollChildRect then col.scroll:UpdateScrollChildRect() end
+end
+
+-- Shared quests in the same column as one combo card ("<mob>: A kills 5/8 · B items 3/6, ~6 min").
+local function comboRows(list, makeOpts)
+	local L, S = SoA.L, SoA.Style
+	local rows, used = {}, {}
+	local inList = {}
+	for _, it in ipairs(list) do inList[it.key] = it end
+	for _, it in ipairs(list) do
+		if not used[it.key] then
+			local partner = it.shared and inList[it.shared.partnerKey]
+			if cfg().groupShared and partner and not used[partner.key] then
+				used[it.key], used[partner.key] = true, true
+				local kill = it.shared.role == "kill" and it or partner
+				local item = kill == it and partner or it
+				local function part(x, word)
+					local sh = x.shared
+					return ("%s %s %d/%d"):format(x.title or "?", word, sh.have or 0, sh.need or 0)
+				end
+				local mob = it.shared.mob
+				if not mob and kill.shared.text then mob = (kill.shared.text:gsub("^%d+/%d+%s*", "")) end
+				mob = mob or "?"
+				local mins = (kill.minutes or 0) + (item.minutes or 0)
+				local key = "c:" .. tostring(kill.key) .. ":" .. tostring(item.key)
+				local combo = {
+					kind = "combo", key = key, members = { kill, item },
+					title = ("%s: %s · %s, ~%s"):format(mob, part(kill, L["kills"]), part(item, L["items"]), S:Minutes(mins)),
+					epicName = kill.epicName, color = kill.color, epicKey = kill.epicKey,
+					xp = (kill.xp or 0) + (item.xp or 0), minutes = mins, priority = math.min(kill.priority or 3, item.priority or 3),
+					objectives = {}, inSprint = kill.inSprint or item.inSprint,
+				}
+				rows[#rows + 1] = { item = combo, opts = {} }
+				if B.expanded[key] then
+					rows[#rows + 1] = { item = kill, opts = makeOpts(kill) }
+					rows[#rows + 1] = { item = item, opts = makeOpts(item) }
+				end
+			else
+				used[it.key] = true
+				rows[#rows + 1] = { item = it, opts = makeOpts(it) }
+			end
+		end
+	end
+	return rows
 end
 
 ---------------------------------------------------------------------------
@@ -653,7 +827,11 @@ function B:Create()
 		f:SetPoint("CENTER", 0, 30)
 	end
 	f:SetScript("OnShow", function() B:Schedule(true) end)
-	f:SetScript("OnHide", hideMenu)
+	f:SetScript("OnHide", function()
+		hideMenu()
+		local D = SoA.Detail
+		if D and D.frame and D.frame:IsShown() and D.frame.docked then D.frame:Hide() end
+	end)
 	self.frame = f
 
 	-- header: title, Kanban/Scrum, filter, buttons, close
@@ -681,9 +859,11 @@ function B:Create()
 	self.kanbanBtn:SetPoint("LEFT", title, "RIGHT", 16, 0)
 	self.scrumBtn = S:Button(head, L["Scrum"], 70, 20, function() cfg().mode = "scrum" B:Schedule(true) end)
 	self.scrumBtn:SetPoint("LEFT", self.kanbanBtn, "RIGHT", 2, 0)
+	self.listBtn = S:Button(head, L["List"], 60, 20, function() cfg().mode = "list" B:Schedule(true) end)
+	self.listBtn:SetPoint("LEFT", self.scrumBtn, "RIGHT", 2, 0)
 
 	self.filterBtn = S:Button(head, "", 170, 20, function(btn) B:FilterMenu(btn) end)
-	self.filterBtn:SetPoint("LEFT", self.scrumBtn, "RIGHT", 16, 0)
+	self.filterBtn:SetPoint("LEFT", self.listBtn, "RIGHT", 16, 0)
 
 	local close = S:Button(head, "X", 24, 20, function() f:Hide() end)
 	close:SetPoint("RIGHT", -6, 0)
@@ -781,7 +961,344 @@ function B:Create()
 	self.foot = S:Font(f, 10)
 	self.foot:SetPoint("BOTTOMLEFT", PAD + 2, 6)
 	self.foot:SetTextColor(unpack(S.colors.muted))
-	self.foot:SetText(L["Click: select quest · Shift-click: add as GPS stop · Right-click: open in quest log"])
+	self.foot:SetText(L["Click: select quest and show details · Shift-click: add as GPS stop · Right-click: menu"])
+
+	self:CreateList()
+end
+
+---------------------------------------------------------------------------
+-- List view (Jira-like table)
+---------------------------------------------------------------------------
+local LIST_COLS = {
+	{ key = "priority", label = "", x = 0, w = 16 },
+	{ key = "title", label = "Quest", x = 20, w = 330 },
+	{ key = "epic", label = "Epic", x = 356, w = 170 },
+	{ key = "status", label = "Status", x = 530, w = 90 },
+	{ key = "estimate", label = "Estimate", x = 624, w = 110 },
+	{ key = "xp", label = "XP", x = 738, w = 70 },
+	{ key = "progress", label = "Progress", x = 812, w = 150 },
+}
+local GROUPS = { { "epic", "Epic" }, { "zone", "Zone" }, { "status", "Status" }, { "none", "None" } }
+local STATUS_COLOR = {
+	todo = { 0.60, 0.65, 0.71 }, doing = { 0.41, 0.80, 0.94 }, ready = { 0.30, 0.90, 0.30 },
+	done = { 0.45, 0.85, 0.45 }, hold = { 1.00, 0.82, 0.25 },
+}
+B.STATUS_COLOR = STATUS_COLOR
+
+local function lcfg() return SoA.char.list end
+
+function B:CreateList()
+	local L, S = SoA.L, SoA.Style
+	local f = self.frame
+	local v = CreateFrame("Frame", nil, f)
+	v:SetPoint("TOPLEFT", PAD, -(HEAD_H + INFO_H + 4))
+	v:SetPoint("BOTTOMRIGHT", -PAD, FOOT_H + 6)
+	v:Hide()
+	self.listView = v
+	v.groupBtn = S:Button(v, "", 130, 20, function(btn)
+		local entries = { { text = L["Group by"], header = true } }
+		for _, g in ipairs(GROUPS) do
+			entries[#entries + 1] = { text = (lcfg().group == g[1] and "> " or "   ") .. L[g[2]], fn = function() lcfg().group = g[1] B:Schedule(true) end }
+		end
+		showMenu(btn, entries)
+	end)
+	v.groupBtn:SetPoint("TOPLEFT", 0, 0)
+	v.sortBtn = S:Button(v, "", 150, 20, function(btn)
+		local entries = { { text = L["Sort by"], header = true } }
+		for _, k in ipairs(SoA.Model:SortModes()) do
+			entries[#entries + 1] = { text = (lcfg().sort == k and "> " or "   ") .. L[SoA.Model.SORT_LABEL[k]], fn = function() lcfg().sort = k lcfg().desc = false B:Schedule(true) end }
+		end
+		showMenu(btn, entries)
+	end)
+	v.sortBtn:SetPoint("LEFT", v.groupBtn, "RIGHT", 6, 0)
+	v.stratBtn = S:Button(v, "", 150, 20, function()
+		local Br = SoA.Bridge
+		local list = Br.RouteStrategies and Br.RouteStrategies()
+		if type(list) ~= "table" or #list == 0 then return end
+		local cur, idx = Br.GetRouteStrategy(), 1
+		for i, k in ipairs(list) do if k == cur then idx = i end end
+		Br.SetRouteStrategy(list[idx % #list + 1])
+		C_Timer.After(0.5, function() SoA.Model:Dirty() B:Schedule(true) end)
+	end)
+	v.stratBtn:SetPoint("LEFT", v.sortBtn, "RIGHT", 6, 0)
+	v.stratBtn.tip = L["Route strategy of the route planner. Click: next."]
+	-- column headers
+	local head = CreateFrame("Frame", nil, v)
+	head:SetPoint("TOPLEFT", 0, -26)
+	head:SetPoint("TOPRIGHT", 0, -26)
+	head:SetHeight(18)
+	local hb = head:CreateTexture(nil, "BACKGROUND")
+	hb:SetAllPoints()
+	hb:SetColorTexture(0.08, 0.10, 0.14, 1)
+	v.heads = {}
+	for _, col in ipairs(LIST_COLS) do
+		local b = CreateFrame("Button", nil, head)
+		b:SetPoint("LEFT", col.x + 4, 0)
+		b:SetSize(col.w, 18)
+		b.text = S:Font(b, 11)
+		b.text:SetPoint("LEFT", 0, 0)
+		b.text:SetTextColor(unpack(S.gold))
+		b:SetScript("OnClick", function()
+			local c = lcfg()
+			if c.sort == col.key then c.desc = not c.desc else c.sort, c.desc = col.key, false end
+			B:Schedule(true)
+		end)
+		b.col = col
+		v.heads[#v.heads + 1] = b
+	end
+	local sc, content = S:ScrollArea(v)
+	sc:SetPoint("TOPLEFT", 0, -46)
+	sc:SetPoint("BOTTOMRIGHT", 0, 0)
+	v.scroll, v.content = sc, content
+	v.rows, v.groups = {}, {}
+end
+
+local function listRow(v, i)
+	local r = v.rows[i]
+	if r then return r end
+	local S = SoA.Style
+	r = CreateFrame("Button", nil, v.content)
+	r:SetHeight(18)
+	r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	local hl = r:CreateTexture(nil, "HIGHLIGHT")
+	hl:SetAllPoints()
+	hl:SetColorTexture(1, 1, 1, 0.05)
+	r.sel = r:CreateTexture(nil, "BACKGROUND")
+	r.sel:SetAllPoints()
+	r.sel:SetColorTexture(1, 0.82, 0, 0.10)
+	r.prio = prioIcon(r)
+	r.prio:SetPoint("LEFT", LIST_COLS[1].x + 6, 0)
+	r.prio:EnableMouse(false)
+	r.icon = r:CreateTexture(nil, "OVERLAY")
+	r.icon:SetSize(14, 14)
+	r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	r.title = S:Font(r, 11)
+	r.title:SetPoint("LEFT", LIST_COLS[2].x + 4, 0)
+	r.title:SetJustifyH("LEFT")
+	r.title:SetWordWrap(false)
+	r.chain = S:ChainIcon(r)
+	r.chain:EnableMouse(false)
+	r.epic = S:Font(r, 10)
+	r.epic:SetPoint("LEFT", LIST_COLS[3].x + 4, 0)
+	r.epic:SetWidth(LIST_COLS[3].w - 4)
+	r.epic:SetJustifyH("LEFT")
+	r.epic:SetWordWrap(false)
+	r.status = S:Font(r, 10)
+	r.status:SetPoint("LEFT", LIST_COLS[4].x + 4, 0)
+	r.status:SetWidth(LIST_COLS[4].w - 4)
+	r.status:SetJustifyH("LEFT")
+	r.est = S:Font(r, 10)
+	r.est:SetPoint("LEFT", LIST_COLS[5].x + 4, 0)
+	r.est:SetWidth(LIST_COLS[5].w - 4)
+	r.est:SetJustifyH("LEFT")
+	r.xp = S:Font(r, 10)
+	r.xp:SetPoint("LEFT", LIST_COLS[6].x + 4, 0)
+	r.xp:SetTextColor(unpack(S.gold))
+	r.bar = S:StatusBar(r, S.colors.accent)
+	r.bar:SetPoint("LEFT", LIST_COLS[7].x + 4, 0)
+	r.bar:SetSize(LIST_COLS[7].w - 50, 8)
+	r.bar:SetMinMaxValues(0, 1)
+	r.pct = S:Font(r, 10)
+	r.pct:SetPoint("LEFT", r.bar, "RIGHT", 4, 0)
+	r:SetScript("OnClick", function(self, button) SoA.guard("list click", B.ClickItem, self.data, button, self) end)
+	r:SetScript("OnEnter", function(self) cardTooltip(self) end)
+	r:SetScript("OnLeave", function(self) if GameTooltip:IsOwned(self) then GameTooltip:Hide() end end)
+	v.rows[i] = r
+	return r
+end
+
+local function groupRow(v, i)
+	local g = v.groups[i]
+	if g then return g end
+	local S = SoA.Style
+	g = CreateFrame("Button", nil, v.content)
+	g:SetHeight(20)
+	local bg = g:CreateTexture(nil, "BACKGROUND")
+	bg:SetAllPoints()
+	bg:SetColorTexture(1, 1, 1, 0.04)
+	g.text = S:Font(g, 12)
+	g.text:SetPoint("LEFT", 4, 0)
+	g.info = S:Font(g, 10)
+	g.info:SetPoint("LEFT", LIST_COLS[5].x + 4, 0)
+	g.info:SetTextColor(unpack(S.colors.muted))
+	g.bar = S:StatusBar(g, S.colors.accent)
+	g.bar:SetPoint("LEFT", LIST_COLS[7].x + 4, 0)
+	g.bar:SetSize(LIST_COLS[7].w - 50, 6)
+	g.bar:SetMinMaxValues(0, 1)
+	g.pct = S:Font(g, 10)
+	g.pct:SetPoint("LEFT", g.bar, "RIGHT", 4, 0)
+	g:SetScript("OnClick", function(self)
+		local fold = lcfg().fold
+		fold[self.key] = not fold[self.key] or nil
+		B:Schedule(true)
+	end)
+	v.groups[i] = g
+	return g
+end
+
+local zoneNames = {}
+local function zoneOf(it)
+	if it.kind ~= "quest" then return SoA.L["Tickets"] end
+	local m = GetQuestUiMapID and num((try(GetQuestUiMapID, it.id, true)))
+	if not m or m <= 0 then return "?" end
+	if not zoneNames[m] then
+		local info = C_Map and C_Map.GetMapInfo and try(C_Map.GetMapInfo, m)
+		zoneNames[m] = type(info) == "table" and str(info.name) or "?"
+	end
+	return zoneNames[m]
+end
+
+function B:RenderList(m)
+	local L, S, M = SoA.L, SoA.Style, SoA.Model
+	local v = self.listView
+	local c = lcfg()
+	local modes = M:SortModes()
+	local valid = c.sort == "title" or c.sort == "progress"
+	for _, k in ipairs(modes) do if k == c.sort then valid = true end end
+	if not valid then c.sort = "priority" end
+	local gname = "None"
+	for _, g in ipairs(GROUPS) do if g[1] == c.group then gname = g[2] end end
+	v.groupBtn.text:SetText(L["Group: %s"]:format(L[gname]))
+	v.sortBtn.text:SetText(L["Sort: %s"]:format(L[M.SORT_LABEL[c.sort] or c.sort]) .. (c.desc and " v" or ""))
+	local strat = c.sort == "route" and SoA.Bridge.GetRouteStrategy and SoA.Bridge.GetRouteStrategy()
+	v.stratBtn:SetShown(strat and true or false)
+	if strat then v.stratBtn.text:SetText(L["Route: %s"]:format(L[SoA.Bridge.STRATEGY_LABEL[strat] or strat])) end
+	for _, h in ipairs(v.heads) do
+		local col = h.col
+		local label = col.label ~= "" and L[col.label] or ""
+		if c.sort == col.key then label = label .. (c.desc and " v" or " ^") end
+		h.text:SetText(label)
+	end
+	-- items and groups
+	local filter, showLoose = cfg().filter, cfg().showLoose
+	local groups, order = {}, {}
+	local function group(key, name, color, rank)
+		local g = groups[key]
+		if not g then
+			g = { key = key, name = name, color = color, rank = rank or 50, items = {} }
+			groups[key] = g
+			order[#order + 1] = g
+		end
+		return g
+	end
+	for _, it in ipairs(m.items) do
+		if passes(it, filter, showLoose) then
+			local g
+			if it.onHold then g = group("hold", L["On hold"], S.gold, 98)
+			elseif it.epicKey == "loose" and it.kind == "quest" then g = group("loose", L["Loose tasks"], S.colors.muted, 97)
+			elseif c.group == "epic" then g = group("e:" .. tostring(it.epicKey), it.epicName or L["Loose tasks"], it.color)
+			elseif c.group == "zone" then local z = zoneOf(it) g = group("z:" .. z, z, S.colors.accent, it.zone and 1 or 50)
+			elseif c.group == "status" then
+				local st = M.Status(it)
+				g = group("s:" .. st, L[SoA.Flow.STATUS_LABEL[st] or st], STATUS_COLOR[st], ({ doing = 1, ready = 2, todo = 3 })[st])
+			else g = group("all", L["All"], S.colors.accent, 1) end
+			g.items[#g.items + 1] = it
+		end
+	end
+	for _, g in ipairs(order) do
+		M:Sort(g.items, c.sort, c.desc)
+		g.best = g.items[1] and g.items[1].priority or 9
+	end
+	table.sort(order, function(a, b)
+		if a.rank ~= b.rank then return a.rank < b.rank end
+		if a.best ~= b.best then return a.best < b.best end
+		return (a.name or "") < (b.name or "")
+	end)
+	-- layout
+	local width = math.max(200, (v:GetWidth() or 900) - 8)
+	local y, ri, gi = 0, 0, 0
+	v.rowTop = {}
+	for _, g in ipairs(order) do
+		gi = gi + 1
+		local gr = groupRow(v, gi)
+		gr.key = g.key
+		local folded = c.fold[g.key]
+		local mins, prog = 0, 0
+		for _, it in ipairs(g.items) do mins = mins + (it.minutes or 0) prog = prog + M.Progress(it) end
+		local col = g.color or S.colors.muted
+		gr.text:SetText((folded and "+ " or "- ") .. (g.name or "?") .. "  |cff999999(" .. #g.items .. ")|r")
+		gr.text:SetTextColor(col[1], col[2], col[3])
+		gr.info:SetText(S:Minutes(mins))
+		local frac = #g.items > 0 and prog / #g.items or 0
+		gr.bar:SetValue(frac)
+		gr.bar:SetStatusBarColor(col[1], col[2], col[3])
+		gr.pct:SetText(("%d%%"):format(frac * 100 + 0.5))
+		gr:ClearAllPoints()
+		gr:SetPoint("TOPLEFT", v.content, "TOPLEFT", 0, -y)
+		gr:SetWidth(width)
+		gr:Show()
+		y = y + 22
+		if not folded then
+			for _, it in ipairs(g.items) do
+				ri = ri + 1
+				local r = listRow(v, ri)
+				r.data, r.item = it, it
+				r.icon:Hide()
+				r.prio:SetShown(it.kind == "quest" or it.kind == "ticket")
+				setPrio(r.prio, it.priority or 3, it.pinned)
+				local title = it.title or "?"
+				if it.kind == "quest" and it.showLevel then title = "[" .. it.showLevel .. "] " .. title end
+				r.title:SetText(title)
+				if it.kind == "quest" and it.level then r.title:SetTextColor(SoA.Log:LevelColor(it.level)) else r.title:SetTextColor(1, 1, 1) end
+				local tw = LIST_COLS[2].w - 8 - (it.itemTex and 16 or 0) - (it.shared and 18 or 0)
+				r.title:SetWidth(tw)
+				local tx = LIST_COLS[2].x + 4 + math.min(tw, (r.title:GetStringWidth() or 0)) + 4
+				r.chain:SetShown(it.shared ~= nil)
+				if it.shared then r.chain:ClearAllPoints() r.chain:SetPoint("LEFT", tx, 0) tx = tx + 18 end
+				if it.itemTex then r.icon:SetTexture(it.itemTex) r.icon:ClearAllPoints() r.icon:SetPoint("LEFT", tx, 0) r.icon:Show() end
+				local ec = it.color or S.colors.muted
+				r.epic:SetText(it.epicName or (it.kind == "ticket" and L["Ticket"]) or L["Loose tasks"])
+				r.epic:SetTextColor(ec[1], ec[2], ec[3])
+				local st = M.Status(it)
+				local stText = L[SoA.Flow.STATUS_LABEL[st] or st]
+				if it.blocked then stText = stText .. " |cffff4d4d!|r" end
+				r.status:SetText(stText)
+				local sc = STATUS_COLOR[st] or S.colors.text
+				r.status:SetTextColor(sc[1], sc[2], sc[3])
+				r.est:SetText(it.est and SoA.Estimate:Format(it.est) or "")
+				r.xp:SetText(it.xp and S:Short(it.xp) or "")
+				local p = M.Progress(it)
+				r.bar:SetValue(p)
+				r.bar:SetStatusBarColor(sc[1], sc[2], sc[3])
+				r.pct:SetText(("%d%%"):format(p * 100 + 0.5))
+				r.sel:SetShown(SoA.Detail:IsShowing(it.kind == "quest" and it.id or it.key) and true or false)
+				r:SetAlpha((it.onHold and not it.resumeReady) and 0.6 or 1)
+				r:ClearAllPoints()
+				r:SetPoint("TOPLEFT", v.content, "TOPLEFT", 0, -y)
+				r:SetWidth(width)
+				r:Show()
+				v.rowTop[it.key] = y
+				if it.kind == "quest" then v.rowTop[it.id] = y end
+				y = y + 19
+			end
+		end
+	end
+	for i = ri + 1, #v.rows do v.rows[i]:Hide() v.rows[i].data, v.rows[i].item = nil, nil end
+	for i = gi + 1, #v.groups do v.groups[i]:Hide() end
+	v.content:SetSize(width, math.max(1, y))
+	v.scroll:Refresh()
+end
+
+-- Scroll the card (or list row) of a ticket into view; the detail border marks it.
+function B:Focus(key)
+	if not (self.frame and self.frame:IsShown()) then return end
+	self:Schedule(true)
+	if cfg().mode == "list" then
+		local v = self.listView
+		local top = v and v.rowTop and v.rowTop[key]
+		if top then v.scroll:ShowRange(top, top + 19) end
+		return
+	end
+	local c = self.cardByKey[key]
+	if not (c and c.col) then return end
+	local sc = c.col.scroll
+	local h = sc:GetHeight() or 0
+	local cur = sc:GetVerticalScroll() or 0
+	if c.top < cur then sc:SetVerticalScroll(c.top)
+	elseif c.bottom > cur + h then
+		local max = sc:GetVerticalScrollRange() or 0
+		sc:SetVerticalScroll(math.min(max, c.bottom - h))
+	end
 end
 
 function B:FilterMenu(anchor)
@@ -815,10 +1332,10 @@ function B:FilterName(m)
 	return L["All"]
 end
 
-local function passes(it, filter, showLoose)
+function passes(it, filter, showLoose)
 	if filter == "zone" then return it.zone == true end
 	if filter == "loose" then return it.epicKey == "loose" end
-	if filter ~= "all" then return it.epicKey == filter end
+	if filter ~= "all" then return it.epicKey == filter or it.storyKey == filter end
 	if not showLoose and it.epicKey == "loose" and it.kind ~= "ticket" then return false end
 	return true
 end
@@ -857,9 +1374,26 @@ function B:Render()
 	local L, S, SP = SoA.L, SoA.Style, SoA.Sprint
 	local c = cfg()
 	local m = SoA.Model:Get()
+	wipe(B.cardByKey)
 	local scrum = c.mode == "scrum"
-	S:SetActive(self.kanbanBtn, not scrum)
+	local listMode = c.mode == "list"
+	S:SetActive(self.kanbanBtn, c.mode == "kanban")
 	S:SetActive(self.scrumBtn, scrum)
+	S:SetActive(self.listBtn, listMode)
+	if self.listView then self.listView:SetShown(listMode) end
+	if listMode then
+		self.filterBtn.text:SetText(L["Filter: %s"]:format(self:FilterName(m)))
+		self.strip:Hide()
+		self.hint:Hide()
+		self.backlog:Hide()
+		for _, col in ipairs(self.cols) do col:Hide() end
+		local info = {}
+		local ft = SoA.Review:ForecastText()
+		if ft then info[#info + 1] = ft end
+		self.info:SetText(table.concat(info, "   ·   "))
+		SoA.guard("board list", self.RenderList, self, m)
+		return
+	end
 	self.filterBtn.text:SetText(L["Filter: %s"]:format(self:FilterName(m)))
 	local filter, showLoose = c.filter, c.showLoose
 
@@ -992,9 +1526,11 @@ function B:Render()
 		local key = COLS[i].key
 		if col:IsShown() then
 			local rows, mins = {}, 0
-			for _, it in ipairs(buckets[key]) do
-				rows[#rows + 1] = { item = it, opts = { remove = scrum and key ~= "done" and it.inSprint } }
-				mins = mins + (it.minutes or 0)
+			for _, it in ipairs(buckets[key]) do mins = mins + (it.minutes or 0) end
+			if key == "done" then
+				for _, it in ipairs(buckets[key]) do rows[#rows + 1] = { item = it, opts = {} } end
+			else
+				rows = comboRows(buckets[key], function(it) return { remove = scrum and it.inSprint } end)
 			end
 			-- without an On hold column: on-hold cards at the bottom of To do
 			if key == "todo" and not showHold and #buckets.hold > 0 then

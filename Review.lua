@@ -11,14 +11,35 @@ local VELOCITY_N = 5
 local session = { xp = 0, active = 0 }
 local lastXP, lastMax
 
+-- ScrumOfAzerothCharDB.review = { popup, history = array of sprint summaries, pace = { xph, hours },
+--   sessions = array of { start, stop, active, xp, quests, fights }, lifetime, played, imported }
+local SESSIONS_MAX = 100
 local function rdb()
 	local c = SoA.char
-	if not c then return { history = {}, pace = {} } end
+	if not c then return { history = {}, pace = {}, sessions = {} } end
 	if type(c.review) ~= "table" then c.review = { popup = true } end
 	local r = c.review
 	if type(r.history) ~= "table" then r.history = {} end
 	if type(r.pace) ~= "table" then r.pace = {} end
+	if type(r.sessions) ~= "table" then r.sessions = {} end
 	return r
+end
+
+-- This session as a record (updated every minute and at logout).
+local sessionRec
+local function storeSession()
+	local r = rdb()
+	if not sessionRec then
+		sessionRec = { start = SoA.loginTime or time() }
+		r.sessions[#r.sessions + 1] = sessionRec
+		while #r.sessions > SESSIONS_MAX do table.remove(r.sessions, 1) end
+	end
+	sessionRec.stop = time()
+	sessionRec.active = session.active
+	sessionRec.xp = session.xp
+	sessionRec.quests = #SoA.sessionDone
+	if SoA.Activity then sessionRec.fights = SoA.Activity:RangeStats(sessionRec.start).fights end
+	sessionRec.level = num(UnitLevel("player"))
 end
 
 local function readXP()
@@ -131,6 +152,14 @@ function R:Summarize(s)
 	e.levels = num(UnitLevel("player"), 1) - num(s.startLevel, num(UnitLevel("player"), 1))
 	local money = GetMoney and num((try(GetMoney)))
 	e.money = money and s.startMoney and (money - s.startMoney) or nil
+	-- combat (Activity.lua): fights, average DPS, deaths, downtime
+	if SoA.Activity then
+		local cs = SoA.Activity:RangeStats(s.started, s.ended)
+		e.fights = cs.fights
+		e.avgDps = cs.avgDps and math.floor(cs.avgDps + 0.5) or nil
+		e.fightDeaths = cs.deaths
+		e.downPct = cs.downPct and math.floor(cs.downPct * 1000 + 0.5) / 10 or nil
+	end
 	return e
 end
 
@@ -296,6 +325,11 @@ local function line(e, label)
 	if e.active > 0 then
 		parts[#parts + 1] = L["walking %d%% · combat %d%% · idle %d%%"]:format(e.move / e.active * 100, e.combat / e.active * 100, e.idle / e.active * 100)
 	end
+	if (e.fights or 0) > 0 then
+		parts[#parts + 1] = L["%d fights"]:format(e.fights)
+		if e.avgDps then parts[#parts + 1] = L["avg %s DPS"]:format(S:Digits(e.avgDps)) end
+		if e.downPct then parts[#parts + 1] = L["downtime %d%%"]:format(e.downPct + 0.5) end
+	end
 	local text = label .. "\n" .. table.concat(parts, " · ")
 	if e.goal and e.goal ~= "" then text = text .. "\n" .. L["Goal: %s"]:format(e.goal) end
 	return text
@@ -304,7 +338,7 @@ end
 local function build()
 	local L, S = SoA.L, SoA.Style
 	local f = CreateFrame("Frame", "ScrumOfAzerothReview", UIParent, "BackdropTemplate")
-	f:SetSize(560, 420)
+	f:SetSize(560, 560)
 	f:SetPoint("CENTER", 0, 40)
 	f:SetFrameStrata("DIALOG")
 	f:SetToplevel(true)
@@ -355,6 +389,14 @@ local function build()
 	f.life:SetPoint("TOPLEFT", f.lifeHead, "BOTTOMLEFT", 0, -4)
 	f.life:SetWidth(536)
 	f.life:SetJustifyH("LEFT")
+	f.roadHead = S:Font(f, 12)
+	f.roadHead:SetPoint("TOPLEFT", f.life, "BOTTOMLEFT", 0, -14)
+	f.roadHead:SetText(L["Roadmap: zone stories"])
+	f.roadHead:SetTextColor(unpack(S.gold))
+	f.road = S:Font(f, 11)
+	f.road:SetPoint("TOPLEFT", f.roadHead, "BOTTOMLEFT", 0, -4)
+	f.road:SetWidth(536)
+	f.road:SetJustifyH("LEFT")
 	f.note = S:Font(f, 10)
 	f.note:SetPoint("BOTTOMLEFT", 12, 10)
 	f.note:SetWidth(536)
@@ -413,6 +455,21 @@ function R:Refresh()
 		parts[#parts + 1] = L["%.1f kills per quest"]:format(life.kills.value / life.quests.value)
 	end
 	win.life:SetText(#parts > 0 and table.concat(parts, "\n") or L["Not imported yet (Settings: Re-import history)."])
+	-- roadmap: completion dates of zone stories as milestones, then stories in progress
+	local St = SoA.Stories
+	local lines = {}
+	if St then
+		local done, open = St:Milestones()
+		for i = 1, math.min(5, #done) do
+			local s = done[i]
+			lines[#lines + 1] = ("|cff4ce64c%s|r  %s"):format(date("%d/%m/%Y", s.date), s.name or "?")
+		end
+		for i = 1, math.min(4, #open) do
+			local s = open[i]
+			lines[#lines + 1] = ("|cff69ccf0%d/%d|r  %s"):format(s.done, s.total, s.name or "?")
+		end
+	end
+	win.road:SetText(#lines > 0 and table.concat(lines, "\n") or L["No zone stories found yet."])
 end
 
 function R:Show(auto)
@@ -442,7 +499,9 @@ function R:OnEnable()
 			r.pace.hours = math.min(200, h0 + hours)
 		end
 		if SoA.Sprint:IsActive() then R:Store(SoA.Sprint.Data(), false) end
+		if session.active > 60 then storeSession() end
 	end)
+	C_Timer.NewTicker(60, function() if session.active > 60 then SoA.guard("session", storeSession) end end)
 	SoA:Listen("SPRINT", function() R:Refresh() end)
 	C_Timer.NewTicker(1, function() SoA.guard("review-tick", tick) end)
 	C_Timer.After(5, function()
