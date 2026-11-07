@@ -10,6 +10,7 @@ Agile questing for World of Warcraft (WoW Forever client, interface 16001). By D
 - **Estimates**: minutes per quest from walking, kills, drops, clicks and progress bars, learned from your own play. Shown as a range.
 - **Priorities**: Jira-style, automatic (XP per minute, chain value, difficulty, upgrades, blockers) or set by hand.
 - **Flow**: manual status moves (afterwards automatic moves only go forward until "Resume automatic"), toasts, "Put on hold?" hints, shared-mob quests linked or grouped.
+- **Dungeons & raids**: a dungeon or raid is an epic, a run is a short sprint. Entering an instance starts a run by itself with one card per boss (from the Encounter Journal) plus a Trash card; the next boss is always In progress, a kill moves it to Done with its time and your best. Clearing every boss ends the run with the clear time and a personal-best check; leaving for more than 30 minutes ends it unfinished. Quests whose objectives are inside a dungeon get its name as a badge and also count for the dungeon's epic; the dungeon details show a pick-up list (quests seen there before that are not in your log yet), the bosses with best kill times, last runs, trash share and the raid lockout of this week. Read-only: GetInstanceInfo, ENCOUNTER_START/END, the Encounter Journal and saved instances.
 - **Flow view** (`/soa flow`, the board's Flow button, or "Show flow" on a card or in the details): a zoomable, pannable node graph of an epic (questline) or initiative (campaign). The main line runs in questline order; side branches come from quests shared by two questlines, campaign chapters and follow-ups learned from your own play (dashed; right-click to remove). Nodes show status, level, progress and the estimate or actual time; a click opens the details, shift-click adds a GPS stop. Fit, zoom with the mouse wheel, drag to pan, minimap in the corner. Never rebuilt in combat.
 - **Compact tracker**: only when no partner tracker (CasterKit) is shown; with quest item buttons.
 
@@ -33,6 +34,8 @@ Optional. With CasterKit loaded, CasterKit's locked quest route **is** the sprin
 ## Saved data
 
 `ScrumOfAzerothDB` and `ScrumOfAzerothCharDB` carry a `schemaVersion`; timestamps are `time()` seconds; fights, walks, sprints (`review.history`), sessions (`review.sessions`) and tickets (`tickets.list`) are arrays of records.
+
+Dungeon runs are stored per character in `ScrumOfAzerothCharDB.dungeons`: `runs` (array of `{ id, key, instanceID, mapID, name, kind = "party"|"raid", difficultyID, difficultyName, groupSize, start, finish, duration, complete, bosses = { { encounterID, name, duration, success, wipes, dps, hps, deaths } }, trash = { time, pulls }, deaths, xp, money, quests } }`), `best` (`["<key>:<difficultyID>"] = runId`), `lockouts` (`{ name, instanceID, difficultyID, difficultyName, isRaid, reset, bosses = { { name, killed } } }`) and `current`. Boss lists and learned dungeon quests are per account in `ScrumOfAzerothDB.dungeonInfo` and `dungeonQuests`.
 
 Learned flow links are stored per account in `ScrumOfAzerothDB.flow.edges` (`[fromQuestID] = { [toQuestID] = count }`) and `flow.rejected` (links you removed); a link is drawn after 2 observations, or 1 when the questline confirms the order. Flow settings are per character in `ScrumOfAzerothCharDB.flow`.
 

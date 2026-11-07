@@ -649,6 +649,7 @@ local function fillCard(c, it, width, opts)
 	if it.est and it.kind ~= "done" then meta[#meta + 1] = SoA.Estimate:Format(it.est) end
 	if it.blocked and it.kind ~= "upcoming" then meta[#meta + 1] = "|cffff4d4d" .. L["Blocked"] .. "|r" end
 	if it.upgrade then meta[#meta + 1] = "|cff4ce64c" .. L["Upgrade"] .. "|r" end
+	if it.dungeonName and it.kind == "quest" then meta[#meta + 1] = "|cffdb9e42" .. it.dungeonName .. "|r" end
 	if it.kind == "upcoming" then meta[#meta + 1] = L["after: %s"]:format(it.after or "?") end
 	if it.ready and it.turnIn then meta[#meta + 1] = "|cff4ce64c" .. L["Turn in: %s"]:format(it.turnIn) .. "|r" end
 	if it.kind == "done" and it.minutes then meta[#meta + 1] = S:Minutes(it.minutes) end
@@ -1443,7 +1444,7 @@ end
 function passes(it, filter, showLoose)
 	if filter == "zone" then return it.zone == true end
 	if filter == "loose" then return it.epicKey == "loose" end
-	if filter ~= "all" then return it.epicKey == filter or it.storyKey == filter end
+	if filter ~= "all" then return it.epicKey == filter or it.storyKey == filter or it.dungeonKey == filter end
 	if not showLoose and it.epicKey == "loose" and it.kind ~= "ticket" then return false end
 	return true
 end
@@ -1509,6 +1510,8 @@ function B:Render()
 	local info = {}
 	local ft = SoA.Review:ForecastText()
 	if ft then info[#info + 1] = ft end
+	local run = SoA.Dungeons and SoA.Dungeons:InfoText()
+	if run then table.insert(info, 1, run) end
 	local st = SP:Status(m)
 	if st and st.xpRemaining > 0 then
 		local lvl, pct = SoA.Review:LevelAfter(st.xpRemaining)
@@ -1709,7 +1712,7 @@ function SoA:ToggleBoard()
 end
 
 function B:OnEnable()
-	for _, msg in ipairs({ "MODEL_CHANGED", "SPRINT", "PRIORITY", "SETTINGS" }) do
+	for _, msg in ipairs({ "MODEL_CHANGED", "SPRINT", "PRIORITY", "SETTINGS", "DUNGEON" }) do
 		SoA:Listen(msg, function() B:Schedule() end)
 	end
 	-- burndown and forecast move on with time

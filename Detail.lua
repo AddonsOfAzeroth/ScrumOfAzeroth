@@ -1057,6 +1057,7 @@ end
 function D:EpicView(cv, tab)
 	local L, S = SoA.L, SoA.Style
 	local key = self.epicKey
+	if key and key:sub(1, 3) == "dg:" and SoA.Dungeons then return SoA.Dungeons:EpicView(cv, tab, self) end
 	local e = (key and key:sub(1, 3) == "st:" and SoA.Stories and SoA.Stories:ByKey(key)) or SoA.Epics:ByKey(key)
 	local m = SoA.Model:Get()
 	local me = m.epics[key]
@@ -1124,7 +1125,7 @@ function D:Schedule()
 end
 
 function D:OnEnable()
-	for _, msg in ipairs({ "MODEL_CHANGED", "ACTIVITY", "SPRINT", "PRIORITY", "SETTINGS" }) do
+	for _, msg in ipairs({ "MODEL_CHANGED", "ACTIVITY", "SPRINT", "PRIORITY", "SETTINGS", "DUNGEON" }) do
 		SoA:Listen(msg, function() D:Schedule() end)
 	end
 	SoA:On("QUEST_TURNED_IN", function(_, id) id = num(id) if id then textCache[id] = nil end end)

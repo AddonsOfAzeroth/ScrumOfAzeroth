@@ -564,6 +564,7 @@ local function finalize(f)
 		targets = #f.targets > 0 and { f.targets[1], f.targets[2], f.targets[3] } or nil,
 	}
 	store(db().fights, rec, Act.MAX_FIGHTS, foldFight)
+	SoA:Fire("FIGHT", rec) -- Dungeons.lua: boss fight or trash
 	if downFight == f then downFight = rec end
 	if learnedKill[f] then learnedKill[rec] = true end
 	-- drop attempts for the estimates: attributed quests, else every quest close by

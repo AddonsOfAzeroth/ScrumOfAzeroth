@@ -94,6 +94,13 @@ function M:Build()
 		it.column = q.ready and "ready" or (q.progress and "doing" or "todo")
 		SoA.Flow:Apply(it) -- manual moves: forward only until "Resume automatic"
 		-- zone story (achievement): the epic of a quest without a questline
+		-- dungeon quest: also part of the dungeon's epic (shown as a badge)
+		local dk, dn
+		if SoA.Dungeons then dk, dn = SoA.Dungeons:ForQuest(q.id) end
+		if dk then
+			it.dungeonKey, it.dungeonName = "dg:" .. dk, dn
+			addEpic(it.dungeonKey, dn, SoA.Dungeons.COLOR)
+		end
 		local st = SoA.Stories and SoA.Stories:ForQuest(q.id)
 		if st then
 			it.story, it.storyKey = st, st.key
@@ -134,7 +141,14 @@ function M:Build()
 				ready = t.status == "ready", progress = t.status ~= "todo", column = t.status,
 				map = t.map, zone = t.map ~= nil and t.map.m == SoA:PlayerMap(),
 			}
-			if t.label then
+			if t.dungeon then
+				-- a run card (Dungeons.lua): the dungeon is the epic
+				local info = SoA.Dungeons and SoA.Dungeons:Info(t.dungeon)
+				local name = (info and info.name) or t.dungeonName or t.dungeon
+				it.epicKey, it.epicName, it.color = "dg:" .. t.dungeon, name, SoA.Dungeons.COLOR
+				it.dungeonKey = it.epicKey
+				addEpic(it.epicKey, name, it.color)
+			elseif t.label then
 				it.epicKey, it.epicName, it.color = "lb:" .. t.label, t.label, labelColor(t.label)
 				addEpic(it.epicKey, t.label, it.color)
 			else
