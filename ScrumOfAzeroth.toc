@@ -1,0 +1,30 @@
+## Interface: 16001
+## Title: Scrum of Azeroth
+## Notes: Agile questing: questlines as epics, a Kanban/Scrum quest board, sprints with burndown, estimates and priorities.
+## Notes-nlNL: Agile questen: questlijnen als epics, een Kanban/Scrum-questbord, sprints met burndown, schattingen en prioriteiten.
+## Author: DinX
+## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Misc_Note_01
+## SavedVariables: ScrumOfAzerothDB
+## SavedVariablesPerCharacter: ScrumOfAzerothCharDB
+## OptionalDeps: CasterKit, RoadsOfAzeroth
+
+libs\LibStub\LibStub.lua
+libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+
+Core.lua
+Locale.lua
+Style.lua
+Log.lua
+Epics.lua
+Estimate.lua
+Priority.lua
+Upgrade.lua
+Tickets.lua
+Sprint.lua
+Model.lua
+Review.lua
+API.lua
+Board.lua
+Config.lua
+Bridge_CasterKit.lua

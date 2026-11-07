@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="SCRUMOFAZEROTH_BOARD" header="SCRUMOFAZEROTH" category="ADDONS">
+		ScrumOfAzeroth:ToggleBoard()
+	</Binding>
+</Bindings>

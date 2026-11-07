@@ -1,0 +1,7 @@
+# WoW client files
+*.bak
+.DS_Store
+Thumbs.db
+# editor
+.vscode/
+.idea/
