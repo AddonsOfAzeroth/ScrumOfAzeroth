@@ -351,6 +351,8 @@ add({
 	["Progress on an on-hold quest: %s. Resume?"] = "Voortgang op een quest in de wacht: %s. Hervatten?",
 	["Progress: %s"] = "Voortgang: %s",
 	["Put on hold"] = "In de wacht zetten",
+	["Note (optional)"] = "Notitie (optioneel)",
+	["Blocker"] = "Blokkade",
 	["Put on hold?"] = "In de wacht?",
 	["Put on hold? after no progress"] = "In de wacht? na geen voortgang",
 	["Quest first"] = "Eerst questen",

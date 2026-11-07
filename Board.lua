@@ -83,73 +83,162 @@ end
 ---------------------------------------------------------------------------
 -- Context menu (priority, blockers, filter)
 ---------------------------------------------------------------------------
-local menu
+-- Two levels: the main menu and one submenu that opens on hover. Lighter than
+-- the panels with an accent border, so it stands out from the board behind it.
+-- Entry fields: text, fn(note), color, header, checked, sub = { entries }, note.
+local MENU_BG = { 0.14, 0.16, 0.21, 1 }
+local ROW_H, MIN_W = 18, 150
+local menus = {}
 
-local function hideMenu() if menu then menu:Hide() end end
+local function hideMenu()
+	for i = #menus, 1, -1 do menus[i]:Hide() end
+end
 
-local function showMenu(anchor, entries, withNote)
+local function getMenu(level)
+	local m = menus[level]
+	if m then return m end
 	local S = SoA.Style
-	if not menu then
-		menu = CreateFrame("Frame", "ScrumOfAzerothMenu", UIParent, "BackdropTemplate")
-		menu:SetFrameStrata("FULLSCREEN_DIALOG")
-		menu:SetClampedToScreen(true)
-		menu:EnableMouse(true)
-		S:Backdrop(menu, 0.98)
-		menu.rows = {}
-		menu.note = CreateFrame("EditBox", nil, menu, "BackdropTemplate")
-		S:Backdrop(menu.note, 1)
-		menu.note:SetFont(S.font, 11, "")
-		menu.note:SetTextInsets(4, 4, 0, 0)
-		menu.note:SetAutoFocus(false)
-		menu.note:SetMaxLetters(60)
-		menu.note:SetScript("OnEscapePressed", function(e) e:ClearFocus() menu:Hide() end)
-		menu.note:SetScript("OnEnterPressed", function(e) e:ClearFocus() end)
-		menu:SetScript("OnHide", function(m) m.note:ClearFocus() end)
-		tinsert(UISpecialFrames, "ScrumOfAzerothMenu")
-	end
-	local y, w = -4, 190
+	local name = "ScrumOfAzerothMenu" .. level
+	m = CreateFrame("Frame", name, UIParent, "BackdropTemplate")
+	m:SetFrameStrata("FULLSCREEN_DIALOG")
+	m:SetFrameLevel(10 + level * 10)
+	m:SetClampedToScreen(true)
+	m:EnableMouse(true)
+	m:SetBackdrop({ bgFile = S.flat, edgeFile = S.flat, edgeSize = 1 })
+	m:SetBackdropColor(unpack(MENU_BG))
+	m:SetBackdropBorderColor(unpack(S.colors.accent))
+	m.rows, m.seps = {}, {}
+	m.note = CreateFrame("EditBox", nil, m, "BackdropTemplate")
+	S:Backdrop(m.note, 1)
+	m.note:SetFont(S.font, 11, "")
+	m.note:SetTextInsets(4, 4, 0, 0)
+	m.note:SetAutoFocus(false)
+	m.note:SetMaxLetters(60)
+	m.note:SetScript("OnEscapePressed", function(e) e:ClearFocus() hideMenu() end)
+	m.note:SetScript("OnEnterPressed", function(e) e:ClearFocus() end)
+	m.noteLabel = S:Font(m, 10)
+	m.noteLabel:SetTextColor(unpack(S.colors.muted))
+	m:SetScript("OnHide", function(f)
+		f.note:ClearFocus()
+		if menus[level + 1] then menus[level + 1]:Hide() end
+	end)
+	tinsert(UISpecialFrames, name)
+	menus[level] = m
+	return m
+end
+
+local showMenuLevel
+
+local function openSub(row, entry, level)
+	local sub = getMenu(level + 1)
+	if sub:IsShown() and sub.owner == row then return end
+	showMenuLevel(level + 1, row, entry.sub, entry.note)
+	sub.owner = row
+end
+
+function showMenuLevel(level, anchor, entries, withNote)
+	local S = SoA.Style
+	local L = SoA.L
+	local m = getMenu(level)
+	if menus[level + 1] then menus[level + 1]:Hide() end
+	local w = MIN_W
+	local y = -4
+	local nsep = 0
 	for i, e in ipairs(entries) do
-		local r = menu.rows[i]
+		local r = m.rows[i]
 		if not r then
-			r = CreateFrame("Button", nil, menu)
-			r:SetHeight(16)
+			r = CreateFrame("Button", nil, m)
+			r:SetHeight(ROW_H)
 			r.text = S:Font(r, 11)
-			r.text:SetPoint("LEFT", 6, 0)
+			r.text:SetPoint("LEFT", 16, 0)
 			r.text:SetJustifyH("LEFT")
+			r.mark = S:Font(r, 11)
+			r.mark:SetPoint("LEFT", 5, 0)
+			r.arrow = S:Font(r, 11)
+			r.arrow:SetPoint("RIGHT", -6, 0)
+			r.arrow:SetText(">")
 			local hl = r:CreateTexture(nil, "HIGHLIGHT")
 			hl:SetAllPoints()
-			hl:SetColorTexture(1, 1, 1, 0.08)
-			menu.rows[i] = r
+			hl:SetColorTexture(S.colors.accent[1], S.colors.accent[2], S.colors.accent[3], 0.22)
+			m.rows[i] = r
+		end
+		if e.header and i > 1 then
+			nsep = nsep + 1
+			local line = m.seps[nsep]
+			if not line then
+				line = m:CreateTexture(nil, "ARTWORK")
+				line:SetHeight(1)
+				m.seps[nsep] = line
+			end
+			line:SetColorTexture(1, 1, 1, 0.12)
+			line:ClearAllPoints()
+			line:SetPoint("TOPLEFT", 6, y - 2)
+			line:SetPoint("TOPRIGHT", -6, y - 2)
+			line:Show()
+			y = y - 5
 		end
 		r.text:SetText(e.text)
 		local c = e.header and S.gold or e.color or S.colors.text
 		r.text:SetTextColor(c[1], c[2], c[3])
+		r.mark:SetText(e.checked and "•" or "")
+		r.mark:SetTextColor(unpack(S.colors.accent))
+		r.arrow:SetShown(e.sub and true or false)
 		r:SetEnabled(not e.header)
-		r:SetScript("OnClick", function()
-			menu:Hide()
-			if e.fn then SoA.guard("menu", e.fn, menu.note:GetText()) end
+		r:SetScript("OnEnter", function(row)
+			if e.sub then openSub(row, e, level)
+			elseif menus[level + 1] then menus[level + 1]:Hide() end
+		end)
+		r:SetScript("OnClick", function(row)
+			if e.sub then openSub(row, e, level) return end
+			local note = m.note:IsShown() and m.note:GetText() or nil
+			hideMenu()
+			if e.fn then SoA.guard("menu", e.fn, note) end
 		end)
 		r:ClearAllPoints()
-		r:SetPoint("TOPLEFT", 2, y)
-		r:SetPoint("TOPRIGHT", -2, y)
+		r:SetPoint("TOPLEFT", 1, y)
+		r:SetPoint("TOPRIGHT", -1, y)
 		r:Show()
-		y = y - 16
+		w = math.max(w, (r.text:GetStringWidth() or 0) + (e.sub and 40 or 28))
+		y = y - ROW_H
 	end
-	for i = #entries + 1, #menu.rows do menu.rows[i]:Hide() end
+	for i = #entries + 1, #m.rows do m.rows[i]:Hide() end
+	for i = nsep + 1, #m.seps do m.seps[i]:Hide() end
 	if withNote then
-		menu.note:ClearAllPoints()
-		menu.note:SetPoint("TOPLEFT", 6, y - 2)
-		menu.note:SetSize(w - 12, 18)
-		menu.note:SetText(withNote ~= true and withNote or "")
-		menu.note:Show()
-		y = y - 24
+		m.noteLabel:SetText(L["Note (optional)"])
+		m.noteLabel:ClearAllPoints()
+		m.noteLabel:SetPoint("TOPLEFT", 8, y - 4)
+		m.noteLabel:Show()
+		m.note:ClearAllPoints()
+		m.note:SetPoint("TOPLEFT", 6, y - 16)
+		m.note:SetPoint("TOPRIGHT", -6, y - 16)
+		m.note:SetHeight(18)
+		m.note:SetText(withNote ~= true and withNote or "")
+		m.note:Show()
+		y = y - 40
 	else
-		menu.note:Hide()
+		m.note:Hide()
+		m.noteLabel:Hide()
 	end
-	menu:SetSize(w, -y + 4)
-	menu:ClearAllPoints()
-	menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
-	menu:Show()
+	w = math.min(math.ceil(w), 320)
+	m:SetSize(w, -y + 4)
+	m:ClearAllPoints()
+	if level == 1 then
+		m:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+	else
+		-- open to the right of the row, or to the left when there is no room
+		local right = (anchor:GetRight() or 0) * anchor:GetEffectiveScale() / UIParent:GetEffectiveScale()
+		if right + w > UIParent:GetRight() then
+			m:SetPoint("TOPRIGHT", anchor, "TOPLEFT", -2, 4)
+		else
+			m:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 2, 4)
+		end
+	end
+	m:Show()
+end
+
+local function showMenu(anchor, entries, withNote)
+	hideMenu()
+	showMenuLevel(1, anchor, entries, withNote)
 end
 
 B.ShowMenu = showMenu
@@ -163,15 +252,14 @@ local MOVE_TO = { { "todo", "To do" }, { "doing", "In progress" }, { "ready", "R
 local function moveEntries(entries, it)
 	local L = SoA.L
 	if not (it.kind == "quest" or it.kind == "ticket") then return end
-	entries[#entries + 1] = { text = L["Move to..."], header = true }
 	for _, s in ipairs(MOVE_TO) do
-		entries[#entries + 1] = { text = (it.column == s[1] and "> " or "   ") .. L[s[2]], fn = function() SoA.Flow:MoveTo(it, s[1]) B:NotifyCK() end }
+		entries[#entries + 1] = { text = L[s[2]], checked = it.column == s[1], fn = function() SoA.Flow:MoveTo(it, s[1]) B:NotifyCK() end }
 	end
 	if it.kind == "ticket" then
-		entries[#entries + 1] = { text = (it.column == "done" and "> " or "   ") .. L["Done"], fn = function() SoA.Flow:MoveTo(it, "done") end }
+		entries[#entries + 1] = { text = L["Done"], checked = it.column == "done", fn = function() SoA.Flow:MoveTo(it, "done") end }
 	end
 	if (it.kind == "quest" and it.manualStatus) or (it.kind == "ticket" and it.ticket and it.ticket.manual) then
-		entries[#entries + 1] = { text = "   " .. L["Resume automatic"], color = SoA.Style.colors.accent, fn = function()
+		entries[#entries + 1] = { text = L["Resume automatic"], color = SoA.Style.colors.accent, fn = function()
 			if it.kind == "quest" then SoA.Flow:ResumeAuto(it.id) else SoA.Tickets:ResumeAuto(it.key) end
 		end }
 	end
@@ -186,25 +274,25 @@ end
 local function holdEntries(entries, it)
 	local L, Hd = SoA.L, SoA.Hold
 	local h = Hd:Get(it.key)
-	entries[#entries + 1] = { text = L["On hold (note below)"], header = true }
 	if h then
-		entries[#entries + 1] = { text = "   " .. L["Resume"], color = SoA.Style.green, fn = function() Hd:Resume(it.key) end }
+		entries[#entries + 1] = { text = L["Resume"], color = SoA.Style.green, fn = function() Hd:Resume(it.key) end }
 		local lvl = (it.level and it.level > (num(UnitLevel("player"), 1)) and it.level) or (num(UnitLevel("player"), 1) + 1)
-		entries[#entries + 1] = { text = "   " .. L["Resume when: level %d"]:format(lvl), fn = function() Hd:SetCondition(it.key, { level = lvl }) end }
-		entries[#entries + 1] = { text = "   " .. L["Resume when: in a group"], fn = function() Hd:SetCondition(it.key, { group = true }) end }
-		entries[#entries + 1] = { text = "   " .. L["Resume when: back in this zone"], fn = function() Hd:SetCondition(it.key, { map = SoA:PlayerMap() }) end }
+		entries[#entries + 1] = { text = L["Resume when: level %d"]:format(lvl), fn = function() Hd:SetCondition(it.key, { level = lvl }) end }
+		entries[#entries + 1] = { text = L["Resume when: in a group"], fn = function() Hd:SetCondition(it.key, { group = true }) end }
+		entries[#entries + 1] = { text = L["Resume when: back in this zone"], fn = function() Hd:SetCondition(it.key, { map = SoA:PlayerMap() }) end }
 	else
 		for _, r in ipairs(Hd.REASONS) do
-			entries[#entries + 1] = { text = "   " .. L["Put on hold: %s"]:format(L[r]),
+			entries[#entries + 1] = { text = L[r],
 				fn = function(note) Hd:Put(it.key, r, note, it.ticket and it.ticket.status, it.title) end }
 		end
 	end
+	return h
 end
 
 function B.HoldMenu(anchor, it)
 	local entries = {}
-	holdEntries(entries, it)
-	showMenu(anchor, entries, true)
+	local h = holdEntries(entries, it)
+	showMenu(anchor, entries, not h)
 end
 
 local function itemMenu(anchor, it)
@@ -224,23 +312,29 @@ local function itemMenu(anchor, it)
 		showMenu(anchor, entries)
 		return
 	end
-	moveEntries(entries, it)
-	entries[#entries + 1] = { text = L["Priority"], header = true }
+	local move = {}
+	moveEntries(move, it)
+	entries[#entries + 1] = { text = L["Move to..."], sub = move }
+	local prio = {}
 	for lvl = 1, 5 do
-		entries[#entries + 1] = { text = (it.priority == lvl and "> " or "   ") .. P:Name(lvl), color = P:Color(lvl),
+		prio[#prio + 1] = { text = P:Name(lvl), color = P:Color(lvl), checked = it.priority == lvl,
 			fn = function() P:SetManual(it.key, lvl) B:NotifyCK() end }
 	end
-	entries[#entries + 1] = { text = "   " .. L["Reset to automatic"], fn = function() P:SetManual(it.key, nil) B:NotifyCK() end }
-	entries[#entries + 1] = { text = L["Blocker (note below)"], header = true }
+	prio[#prio + 1] = { text = L["Reset to automatic"], fn = function() P:SetManual(it.key, nil) B:NotifyCK() end }
+	entries[#entries + 1] = { text = L["Priority"], sub = prio }
+	local block = {}
 	for _, r in ipairs(Bl.REASONS) do
-		entries[#entries + 1] = { text = "   " .. L[r], fn = function(note) Bl:SetManual(it.key, r, note) end }
+		block[#block + 1] = { text = L[r], fn = function(note) Bl:SetManual(it.key, r, note) end }
 	end
-	if Bl:Manual(it.key) then
-		entries[#entries + 1] = { text = "   " .. L["Unblock"], color = SoA.Style.green, fn = function() Bl:SetManual(it.key, nil) end }
-	end
-	holdEntries(entries, it)
 	local m = Bl:Manual(it.key)
-	showMenu(anchor, entries, (m and m.text) or true)
+	if m then
+		block[#block + 1] = { text = L["Unblock"], color = SoA.Style.green, fn = function() Bl:SetManual(it.key, nil) end }
+	end
+	entries[#entries + 1] = { text = L["Blocker"], sub = block, note = (m and m.text) or true }
+	local hold = {}
+	local h = holdEntries(hold, it)
+	entries[#entries + 1] = { text = h and L["On hold"] or L["Put on hold"], sub = hold, note = not h }
+	showMenu(anchor, entries)
 end
 B.ItemMenu = itemMenu
 
