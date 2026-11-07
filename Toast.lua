@@ -51,7 +51,7 @@ local function make()
 	t.text:SetWordWrap(true)
 	if t.text.SetMaxLines then t.text:SetMaxLines(2) end
 	t.btn = S:Button(t, "", 76, 18)
-	t.btn.text:SetFont(S.font, 10, "OUTLINE")
+	S:ApplyFont(t.btn.text, 10)
 	t.btn:SetPoint("TOPRIGHT", -6, -4)
 	t:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	t:SetScript("OnClick", function(self) remove(self) end)

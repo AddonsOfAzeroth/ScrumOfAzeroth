@@ -56,6 +56,8 @@ local charDefaults = {
 
 local accountDefaults = {
 	language = "auto", -- "auto", "enUS" or "nlNL"
+	font = "roboto",   -- "roboto" or "wow" (the game font); CasterKit's choice wins when loaded
+	fontOutline = false,
 	characters = {},   -- ["Name-Realm"] = { class, level, lastSeen } (for external tools)
 	flow = { edges = {}, rejected = {} }, -- learned follow-up links: edges[fromQuestID][toQuestID] = count (EpicFlow.lua)
 }
@@ -277,6 +279,7 @@ SoA:On("ADDON_LOADED", function(_, name)
 	merge(ScrumOfAzerothCharDB, charDefaults)
 	SoA.db = ScrumOfAzerothDB
 	SoA.char = ScrumOfAzerothCharDB
+	SoA.Style:LoadFont(SoA.db)
 	SoA.charDefaults = charDefaults
 	SoA.db.schemaVersion = SoA.SCHEMA
 	SoA.char.schemaVersion = SoA.SCHEMA

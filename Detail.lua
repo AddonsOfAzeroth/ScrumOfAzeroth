@@ -68,7 +68,7 @@ function Canvas:Text(text, opts)
 	opts = opts or {}
 	local S = SoA.Style
 	local fs = self:take("fs", function() return self.content:CreateFontString(nil, "OVERLAY") end)
-	fs:SetFont(S.font, opts.size or 11, opts.plain and "" or "OUTLINE")
+	S:ApplyFont(fs, opts.size or 11, opts.plain and "" or nil)
 	local c = opts.color or S.colors.text
 	fs:SetTextColor(c[1], c[2], c[3])
 	fs:SetJustifyH("LEFT")
@@ -98,14 +98,14 @@ end
 function Canvas:Pair(label, value, color)
 	local S = SoA.Style
 	local l = self:take("fs", function() return self.content:CreateFontString(nil, "OVERLAY") end)
-	l:SetFont(S.font, 11, "OUTLINE")
+	S:ApplyFont(l, 11)
 	l:SetTextColor(unpack(S.colors.muted))
 	l:SetJustifyH("LEFT")
 	l:SetWidth(150)
 	l:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -self.y)
 	l:SetText(label)
 	local v = self:take("fs", function() return self.content:CreateFontString(nil, "OVERLAY") end)
-	v:SetFont(S.font, 11, "OUTLINE")
+	S:ApplyFont(v, 11)
 	local c = color or S.colors.text
 	v:SetTextColor(c[1], c[2], c[3])
 	v:SetJustifyH("LEFT")
@@ -143,7 +143,7 @@ function Canvas:Buttons(list)
 	for _, d in ipairs(list) do
 		local b = self:take("btn", function()
 			local btn = S:Button(self.content, "", 80, 18)
-			btn.text:SetFont(S.font, 10, "OUTLINE")
+			S:ApplyFont(btn.text, 10)
 			btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 			return btn
 		end)

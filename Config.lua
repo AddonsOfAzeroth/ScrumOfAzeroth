@@ -124,6 +124,13 @@ function C:Options()
 	add({ type = "choice", label = L["Language"], opts = { { "auto", L["Automatic"] }, { "enUS", "English" }, { "nlNL", "Nederlands" } },
 		get = function() return SoA.db.language end,
 		set = function(v) SoA.db.language = v changed() end })
+	local ckFont = _G.CasterKit and _G.CasterKit.Style and L["With CasterKit loaded, its font settings are used."] or nil
+	add({ type = "choice", label = L["Font"], opts = { { "roboto", "Roboto" }, { "wow", L["Game font"] } }, tip = ckFont,
+		get = function() return SoA.db.font end,
+		set = function(v) SoA.db.font = v SoA:Print(L["Type /reload to apply the font."]) end })
+	add({ type = "check", label = L["Thick outline on text"], tip = ckFont or L["Off: clean text with a soft shadow, easier to read."],
+		get = function() return SoA.db.fontOutline end,
+		set = function(v) SoA.db.fontOutline = v SoA:Print(L["Type /reload to apply the font."]) end })
 
 	add({ type = "header", text = L["Data"] })
 	add({ type = "button", label = L["Open the board"], fn = function() SoA:ToggleBoard() end, ck = true })
