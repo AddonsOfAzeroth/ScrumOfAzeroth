@@ -382,7 +382,7 @@ function Bridge:Attach()
 	if not (hasCK or hasRoads) then return end
 	Bridge.RegisterEpicProvider(P)
 	if hasCK then
-		Bridge.RegisterConfigPage({ key = "soa", label = "Scrum of Azeroth", build = configPage })
+		Bridge.RegisterConfigPage({ key = "soa", label = SoA.L["Quest board"], group = "Scrum of Azeroth", build = configPage })
 	end
 	if not (SoA.char and (CK() or hasRoads)) then return end -- saved data not ready yet: again at login
 	if Bridge.HasRoute() then SoA.Sprint.backend = backend end

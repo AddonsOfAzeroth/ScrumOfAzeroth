@@ -354,7 +354,7 @@ local function build()
 	local title = S:Font(f, 14)
 	title:SetPoint("TOPLEFT", 12, -10)
 	title:SetText(L["Sprint review"])
-	title:SetTextColor(unpack(S.gold))
+	title:SetTextColor(unpack(S.colors.accent))
 	local close = S:Button(f, "X", 22, 20, function() f:Hide() end)
 	close:SetPoint("TOPRIGHT", -8, -8)
 

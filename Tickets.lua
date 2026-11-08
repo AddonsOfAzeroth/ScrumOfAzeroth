@@ -209,7 +209,7 @@ local function build()
 
 	f.head = S:Font(f, 14)
 	f.head:SetPoint("TOPLEFT", 12, -10)
-	f.head:SetTextColor(unpack(S.gold))
+	f.head:SetTextColor(unpack(S.colors.accent))
 
 	label(f, L["Title"], 12, -38)
 	f.title = edit(f, 356)

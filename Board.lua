@@ -954,31 +954,43 @@ function B:Create()
 	local title = S:Font(head, 14)
 	title:SetPoint("LEFT", 10, 0)
 	title:SetText(L["Quest board"])
-	title:SetTextColor(unpack(S.gold))
+	title:SetTextColor(unpack(S.colors.accent))
 
-	self.kanbanBtn = S:Button(head, L["Kanban"], 70, 20, function() cfg().mode = "kanban" B:Schedule(true) end)
-	self.kanbanBtn:SetPoint("LEFT", title, "RIGHT", 16, 0)
-	self.scrumBtn = S:Button(head, L["Scrum"], 70, 20, function() cfg().mode = "scrum" B:Schedule(true) end)
-	self.scrumBtn:SetPoint("LEFT", self.kanbanBtn, "RIGHT", 2, 0)
-	self.listBtn = S:Button(head, L["List"], 60, 20, function() cfg().mode = "list" B:Schedule(true) end)
-	self.listBtn:SetPoint("LEFT", self.scrumBtn, "RIGHT", 2, 0)
+	-- one button for the view (Kanban, Scrum or List): click for the choice
+	local VIEWS = { { "kanban", "Kanban" }, { "scrum", "Scrum" }, { "list", "List" } }
+	self.viewBtn = S:Button(head, "", 90, 20, function(btn)
+		local entries = {}
+		for _, v in ipairs(VIEWS) do
+			entries[#entries + 1] = { text = L[v[2]], checked = cfg().mode == v[1],
+				fn = function() cfg().mode = v[1] B:Schedule(true) end }
+		end
+		showMenu(btn, entries)
+	end)
+	self.viewBtn:SetPoint("LEFT", title, "RIGHT", 16, 0)
+	self.viewBtn.tip = L["Kanban, Scrum or a plain list."]
+	self.viewLabel = function(mode)
+		for _, v in ipairs(VIEWS) do if v[1] == mode then return L[v[2]] .. "  v" end end
+		return "Kanban  v"
+	end
 
 	self.filterBtn = S:Button(head, "", 170, 20, function(btn) B:FilterMenu(btn) end)
-	self.filterBtn:SetPoint("LEFT", self.listBtn, "RIGHT", 16, 0)
+	self.filterBtn:SetPoint("LEFT", self.viewBtn, "RIGHT", 8, 0)
 
 	local close = S:Button(head, "X", 24, 20, function() f:Hide() end)
 	close:SetPoint("RIGHT", -6, 0)
-	local review = S:Button(head, L["Review"], 70, 20, function() SoA.Review:Toggle() end)
-	review:SetPoint("RIGHT", close, "LEFT", -6, 0)
-	review.tip = L["Sprint review, velocity and lifetime statistics."]
+	-- the rest lives in one "..." menu: review, flow view, settings
+	local more = S:Button(head, "...", 30, 20, function(btn)
+		showMenu(btn, {
+			{ text = L["Review"], fn = function() SoA.Review:Toggle() end },
+			{ text = L["Flow"], fn = function() SoA:ToggleFlow() end },
+			{ text = L["Settings"], fn = function() SoA:ToggleConfig() end },
+		})
+	end)
+	more:SetPoint("RIGHT", close, "LEFT", -6, 0)
+	more.tip = L["Review (velocity and statistics), Flow view (a map of an epic), Settings."]
 	local ticket = S:Button(head, L["+ Ticket"], 70, 20, function() SoA.Tickets:OpenDialog() end)
-	ticket:SetPoint("RIGHT", review, "LEFT", -6, 0)
+	ticket:SetPoint("RIGHT", more, "LEFT", -6, 0)
 	ticket.tip = L["A task that is not a quest, e.g. train spells or farm cloth."]
-	local settings = S:Button(head, L["Settings"], 70, 20, function() SoA:ToggleConfig() end)
-	settings:SetPoint("RIGHT", ticket, "LEFT", -6, 0)
-	local flowBtn = S:Button(head, L["Flow"], 60, 20, function() SoA:ToggleFlow() end)
-	flowBtn:SetPoint("RIGHT", settings, "LEFT", -6, 0)
-	flowBtn.tip = L["Flow view: a zoomable map of an epic or initiative."]
 
 	-- info line: level forecast
 	self.info = S:Font(f, 11)
@@ -1493,9 +1505,7 @@ function B:Render()
 	wipe(B.cardByKey)
 	local scrum = c.mode == "scrum"
 	local listMode = c.mode == "list"
-	S:SetActive(self.kanbanBtn, c.mode == "kanban")
-	S:SetActive(self.scrumBtn, scrum)
-	S:SetActive(self.listBtn, listMode)
+	self.viewBtn.text:SetText(self.viewLabel(c.mode))
 	if self.listView then self.listView:SetShown(listMode) end
 	if listMode then
 		self.filterBtn.text:SetText(L["Filter: %s"]:format(self:FilterName(m)))

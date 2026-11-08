@@ -139,6 +139,8 @@ add({
 	["Needs a profession"] = "Beroep nodig",
 	["New sprint started."] = "Nieuwe sprint gestart.",
 	["died"] = "gestorven",
+	["Kanban, Scrum or a plain list."] = "Kanban, Scrum of een gewone lijst.",
+	["Review (velocity and statistics), Flow view (a map of an epic), Settings."] = "Review (snelheid en statistieken), Flow-weergave (een kaart van een epic), Instellingen.",
 	["Close this sprint and start a new one?"] = "Deze sprint afsluiten en een nieuwe starten?",
 	["New ticket"] = "Nieuw ticket",
 	["No finished sprints yet."] = "Nog geen afgeronde sprints.",
