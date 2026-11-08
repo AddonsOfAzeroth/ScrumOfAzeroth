@@ -934,13 +934,6 @@ function B:Create()
 		if D and D.frame and D.frame:IsShown() and D.frame.docked then D.frame:Hide() end
 	end)
 	self.frame = f
-	-- resize: the board and its details share one size
-	S:AddSizeGrip(f, { key = "board", save = function(fr) SoA.char.point = S:TopLeftPoint(fr) or SoA.char.point end })
-	S:ApplyScale(f)
-	if type(pt) == "table" and pt[1] then -- the saved spot is in scaled units
-		f:ClearAllPoints()
-		f:SetPoint(pt[1], UIParent, pt[2], num(pt[3], 0), num(pt[4], 0))
-	end
 
 	-- header: title, Kanban/Scrum, filter, buttons, close
 	local head = CreateFrame("Frame", nil, f)

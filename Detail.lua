@@ -439,16 +439,6 @@ function D:Build()
 	S:Backdrop(f, 0.97)
 	f:Hide()
 	tinsert(UISpecialFrames, "ScrumOfAzerothDetail")
-	-- resize: same size as the board (it docks next to it)
-	S:AddSizeGrip(f, { key = "board", save = function(fr)
-		if not fr.docked then SoA.char.detail.point = S:TopLeftPoint(fr) or SoA.char.detail.point end
-	end })
-	S:ApplyScale(f)
-	SoA:Listen("SIZE", function(key)
-		if key ~= "board" then return end
-		S:ApplyScale(f)
-		if SoA.Board and SoA.Board.frame then S:ApplyScale(SoA.Board.frame) end
-	end)
 	f:SetScript("OnHide", function() D.key, D.epicKey, D.item = nil, nil, nil if SoA.Board then SoA.Board:Schedule() end end)
 	local bar = f:CreateTexture(nil, "BACKGROUND")
 	bar:SetPoint("TOPLEFT", 1, -1)

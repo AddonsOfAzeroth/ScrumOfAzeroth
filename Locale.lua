@@ -286,7 +286,6 @@ add({
 	["Details"] = "Details",
 	["Details docked at the board"] = "Details vast naast het bord",
 	["Details only"] = "Alleen details",
-	["Drag: bigger or smaller. Double-click: normal size."] = "Slepen: groter of kleiner. Dubbelklik: normale grootte.",
 	["Died"] = "Gestorven",
 	["Distance"] = "Afstand",
 	["Downtime"] = "Rusttijd",
