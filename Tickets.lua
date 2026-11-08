@@ -206,6 +206,8 @@ local function build()
 	S:Backdrop(f, 0.97)
 	f:Hide()
 	tinsert(UISpecialFrames, "ScrumOfAzerothTicket")
+	S:AddSizeGrip(f, { key = "ticket" })
+	S:ApplyScale(f)
 
 	f.head = S:Font(f, 14)
 	f.head:SetPoint("TOPLEFT", 12, -10)
