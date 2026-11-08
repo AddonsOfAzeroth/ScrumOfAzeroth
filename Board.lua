@@ -1038,8 +1038,15 @@ function B:Create()
 	self.chart:SetScript("OnLeave", function(c) if GameTooltip:IsOwned(c) then GameTooltip:Hide() end end)
 
 	self.newBtn = S:Button(strip, L["Start new sprint"], 120, 20, function()
-		SoA.Sprint:NewSprint()
-		SoA:Print(L["New sprint started."])
+		-- closes the current sprint: ask first
+		StaticPopupDialogs.SCRUMOFAZEROTH_NEWSPRINT = StaticPopupDialogs.SCRUMOFAZEROTH_NEWSPRINT or { button1 = YES,
+			button2 = NO, timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3 }
+		StaticPopupDialogs.SCRUMOFAZEROTH_NEWSPRINT.text = L["Close this sprint and start a new one?"]
+		StaticPopupDialogs.SCRUMOFAZEROTH_NEWSPRINT.OnAccept = function()
+			SoA.Sprint:NewSprint()
+			SoA:Print(L["New sprint started."])
+		end
+		StaticPopup_Show("SCRUMOFAZEROTH_NEWSPRINT")
 	end)
 	self.newBtn:SetPoint("RIGHT", self.chart, "LEFT", -8, -10)
 	self.planBtn = S:Button(strip, L["Plan sprint"], 100, 20, function() B:Propose() end)
@@ -1558,7 +1565,7 @@ function B:Render()
 	if needHint then
 		local ck = SoA.Hooks and SoA.Hooks.LockRoute
 		if ck then
-			self.hint.text:SetText(L["Scrum uses CasterKit's locked route as the sprint. The route is not locked right now."])
+			self.hint.text:SetText(L["Scrum uses Roads of Azeroth's locked route as the sprint. The route is not locked right now."])
 			self.hint.btn.text:SetText(L["Lock the route"])
 			self.hint.btn:SetScript("OnClick", function() pcall(ck) B:Schedule(true) end)
 		else

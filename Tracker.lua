@@ -155,7 +155,7 @@ function T:ApplyLayout()
 	local f = self.frame
 	if not f then return end
 	local c = cfg()
-	f:SetScale(math.max(0.6, math.min(1.5, num(c.scale, 1))))
+	f:SetScale(1) -- bigger means more room (the corner grip), never bigger text
 	f:SetWidth(math.max(MIN_W, num(c.width, 250)))
 	applyPoint(f)
 	f.grip:SetShown(not c.locked)

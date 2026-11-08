@@ -29,13 +29,13 @@ function C:Options()
 	g, s = opt("board", "mode")
 	add({ type = "choice", label = L["Board mode"], opts = { { "kanban", L["Kanban"] }, { "scrum", L["Scrum"] } }, get = g, set = s, ck = true })
 	g, s = opt("tracker", "groupEpics")
-	add({ type = "check", label = L["Group quests by epic in CasterKit's tracker"], tip = L["Questlines become epic rows with progress; right-click folds them. Needs CasterKit."], get = g, set = s, ck = true })
+	add({ type = "check", label = L["Group quests by epic in Roads of Azeroth's quest list"], tip = L["Questlines become epic rows with progress; right-click folds them. Needs Roads of Azeroth."], get = g, set = s, ck = true })
 	g, s = opt("board", "showLoose")
 	add({ type = "check", label = L["Show loose tasks (quests without a questline)"], get = g, set = s, ck = true })
 	g, s = opt("board", "showDone")
 	add({ type = "check", label = L["Show the Done column"], get = g, set = s, ck = true })
 	g, s = opt("board", "sprint")
-	add({ type = "check", label = L["Sprint strip and burndown"], tip = L["Also the sprint line in CasterKit's tracker."], get = g, set = s, ck = true })
+	add({ type = "check", label = L["Sprint strip and burndown"], tip = L["Also the sprint line in Roads of Azeroth's quest list."], get = g, set = s, ck = true })
 	g, s = opt("board", "showHold")
 	add({ type = "check", label = L["Show an On hold column"], tip = L["Otherwise on-hold cards are listed at the bottom of To do (Kanban) or the backlog (Scrum)."], get = g, set = s })
 	g, s = opt("board", "autoDone")
@@ -105,14 +105,12 @@ function C:Options()
 	add({ type = "check", label = L["Zone-story achievements as epics"], tip = L["Found in the achievement list at runtime; completion dates appear on the roadmap."], get = g, set = s })
 	add({ type = "button", label = L["Search zone stories again"], fn = function() if SoA.Stories then SoA.Stories:Scan(true) end end })
 
-	add({ type = "header", text = L["Quest tracker (without CasterKit)"] })
+	add({ type = "header", text = L["Quest tracker (without Roads of Azeroth)"] })
 	g, s = opt("tracker2", "enabled")
-	add({ type = "check", label = L["Show SoA's quest tracker"], tip = L["Only shown when no partner tracker (CasterKit) is active."], get = g, set = s })
+	add({ type = "check", label = L["Show SoA's quest tracker"], tip = L["Only shown when no partner tracker (Roads of Azeroth) is active."], get = g, set = s })
 	g, s = opt("tracker2", "content")
 	add({ type = "choice", label = L["Tracker shows"], opts = { { "auto", L["Automatic"] }, { "sprint", L["Sprint"] },
 		{ "doing", L["In progress + Ready"] }, { "all", L["All tracked"] } }, get = g, set = s })
-	g, s = opt("tracker2", "scale")
-	add({ type = "slider", label = L["Tracker scale"], min = 0.6, max = 1.5, step = 0.05, get = g, set = s, fmt = function(v) return ("%d%%"):format(v * 100 + 0.5) end })
 	g, s = opt("tracker2", "maxRows")
 	add({ type = "choice", label = L["Tracker rows"], opts = { { 5, "5" }, { 8, "8" }, { 12, "12" }, { 16, "16" }, { 20, "20" }, { 30, "30" } }, get = g, set = s })
 	g, s = opt("tracker2", "locked")
@@ -124,7 +122,7 @@ function C:Options()
 	add({ type = "choice", label = L["Language"], opts = { { "auto", L["Automatic"] }, { "enUS", "English" }, { "nlNL", "Nederlands" } },
 		get = function() return SoA.db.language end,
 		set = function(v) SoA.db.language = v changed() end })
-	local ckFont = _G.CasterKit and _G.CasterKit.Style and L["With CasterKit loaded, its font settings are used."] or nil
+	local ckFont = _G.CasterKit and _G.CasterKit.Style and L["With Casters of Azeroth loaded, its font settings are used."] or nil
 	add({ type = "choice", label = L["Font"], opts = { { "roboto", "Roboto" }, { "wow", L["Game font"] } }, tip = ckFont,
 		get = function() return SoA.db.font end,
 		set = function(v) SoA.db.font = v SoA:Print(L["Type /reload to apply the font."]) end })
