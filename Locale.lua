@@ -36,6 +36,8 @@ add({
 	["%d deaths"] = "%d keer gestorven",
 	["%d drops @ %d%% = %d kills"] = "%d drops @ %d%% = %d kills",
 	["%d kills x %ds"] = "%d kills x %ds",
+	["%d kills x %ds + %ds search"] = "%d kills x %ds + %ds zoeken",
+	["%d drops @ %d%% = %d kills (+%ds search each)"] = "%d drops @ %d%% = %d kills (+%ds zoeken per kill)",
 	["%d of %d steps done"] = "%d van %d stappen klaar",
 	["%d put on hold during sprint"] = "%d in de wacht gezet tijdens de sprint",
 	["%d steps x %ds"] = "%d stappen x %ds",

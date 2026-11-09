@@ -1,5 +1,7 @@
 -- Scrum of Azeroth by DinX: effort estimates in minutes ("story points").
--- Estimate = walking + work per objective + turn-in walk. Rates are learned from
+-- Estimate = walking + work per objective + turn-in walk. A kill costs the
+-- fight (with eating and drinking after it) plus the search for the next mob,
+-- learned per quest, or guessed from how many enemies are around (nameplates). Rates are learned from
 -- the player's own play, using only PLAYER_REGEN_*, quest log events and
 -- C_QuestLog objectives. No combat log, no unit health, no drop database.
 local _, ns = ...
@@ -20,6 +22,7 @@ Est.TURNIN_WALK = 120 -- s from the objective area to the turn-in (not known in 
 Est.TURNIN = 10       -- s to talk to the quest giver
 Est.UNKNOWN_WALK = 150 -- s when no position is known
 Est.LEARNED_N = 5     -- samples before a rate counts as learned
+Est.SEARCH = 15       -- s to find the next mob, until learned or guessed from the crowd
 local ALPHA = 0.2
 local NEAR_YD = 500
 
@@ -32,6 +35,8 @@ local function db()
 		if type(l[k]) ~= "table" then l[k] = { n = 0 } end
 	end
 	if type(l.drops) ~= "table" then l.drops = {} end
+	if type(l.search) ~= "table" then l.search = {} end   -- [questID] = { avg, n }: s between fights
+	if type(l.crowd) ~= "table" then l.crowd = {} end     -- [questID] = { avg, n }: enemies in sight
 	return l
 end
 
@@ -50,6 +55,20 @@ end
 function Est:KillTime()
 	local k = db().kill
 	return num(k.avg, self.KILL), num(k.n, 0)
+end
+
+-- Seconds to find the next mob for a quest: learned, else from the crowd seen
+-- there (many enemies = short, few = waiting for respawns), else the default.
+function Est:SearchTime(questID)
+	local l = db()
+	local s = questID and l.search[questID]
+	if type(s) == "table" and num(s.n, 0) >= 3 then return num(s.avg, self.SEARCH), num(s.n, 0) end
+	local c = questID and l.crowd[questID]
+	if type(c) == "table" and num(c.n, 0) >= 3 then
+		local n = num(c.avg, 1)
+		return math.max(3, math.min(60, 40 / (n + 0.5))), 1
+	end
+	return self.SEARCH, 0
 end
 
 function Est:ObjectTime()
@@ -217,13 +236,15 @@ function Est:Quest(q, distance)
 				local rem
 				if o.need and o.need > 0 then rem = math.max(0, o.need - (o.have or 0)) else rem = 1 end
 				if o.kind == "monster" then
-					add(rem * kt, kn)
-					parts[#parts + 1] = L["%d kills x %ds"]:format(rem, kt + 0.5)
+					local st = self:SearchTime(q.id)
+					add(rem * (kt + st), kn)
+					parts[#parts + 1] = L["%d kills x %ds + %ds search"]:format(rem, kt + 0.5, st + 0.5)
 				elseif o.kind == "item" then
 					local rate, enc = self:DropRate(q.id, o.index)
 					local kills = rem / rate
-					add(kills * kt, math.min(kn, enc))
-					parts[#parts + 1] = L["%d drops @ %d%% = %d kills"]:format(rem, rate * 100 + 0.5, math.ceil(kills))
+					local st = self:SearchTime(q.id)
+					add(kills * (kt + st), math.min(kn, enc))
+					parts[#parts + 1] = L["%d drops @ %d%% = %d kills (+%ds search each)"]:format(rem, rate * 100 + 0.5, math.ceil(kills), st + 0.5)
 				elseif o.kind == "progressbar" then
 					local pt, pn = self:PctTime()
 					local left = 100 - math.max(0, math.min(100, o.pct or 0))
@@ -354,9 +375,52 @@ function Est:Scan()
 	for key in pairs(prev) do if not seen[key] then prev[key] = nil end end
 end
 
+-- quests close by that still need kills or drops
+local function huntingQuests()
+	local out = {}
+	for _, p in pairs(prev) do
+		if (p.kind == "monster" or p.kind == "item") and not p.done and near(p.quest) then out[p.quest] = true end
+	end
+	return out
+end
+
 local function onCombatStart()
-	fightStart = GetTime()
+	local now = GetTime()
+	-- the time since the last fight, minus the rest after it, is the search
+	if fightEnd > 0 then
+		local search = now - fightEnd - Est.DOWNTIME
+		if search >= 0 and search <= 180 then
+			local l = db()
+			for qid in pairs(huntingQuests()) do
+				l.search[qid] = l.search[qid] or { n = 0 }
+				ema(l.search[qid], search, 0, 180)
+			end
+		end
+	end
+	fightStart = now
 	wipe(fightInc)
+end
+
+-- every few seconds out of combat: how many enemies are in sight (nameplates)
+local function crowd()
+	if not (C_NamePlate and C_NamePlate.GetNamePlates) then return end
+	local quests = huntingQuests()
+	if not next(quests) then return end
+	local ok, plates = pcall(C_NamePlate.GetNamePlates)
+	if not ok or type(plates) ~= "table" then return end
+	local n = 0
+	for _, plate in ipairs(plates) do
+		local u = plate.namePlateUnitToken or (plate.UnitFrame and plate.UnitFrame.unit)
+		if type(u) == "string" and not SoA.IsSecret(u) and flag(try(UnitCanAttack, "player", u))
+			and not flag(try(UnitIsDead, u)) and not flag(try(UnitIsTapDenied, u)) then
+			n = n + 1
+		end
+	end
+	local l = db()
+	for qid in pairs(quests) do
+		l.crowd[qid] = l.crowd[qid] or { n = 0 }
+		ema(l.crowd[qid], n, 0, 40)
+	end
 end
 
 local function encounter(key)
@@ -427,4 +491,5 @@ function Est:OnEnable()
 	SoA:On("PLAYER_REGEN_DISABLED", onCombatStart)
 	SoA:On("PLAYER_REGEN_ENABLED", onCombatEnd)
 	C_Timer.NewTicker(1, function() SoA.guard("est-tick", tick) end)
+	C_Timer.NewTicker(5, function() if not InCombatLockdown() then SoA.guard("est-crowd", crowd) end end)
 end
