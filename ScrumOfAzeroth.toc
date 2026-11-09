@@ -29,6 +29,7 @@ Sprint.lua
 Flow.lua
 Model.lua
 Review.lua
+Archive.lua
 API.lua
 Board.lua
 Detail.lua

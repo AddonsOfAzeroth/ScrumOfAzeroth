@@ -996,12 +996,13 @@ function B:Create()
 	local more = S:Button(head, "...", 30, 20, function(btn)
 		showMenu(btn, {
 			{ text = L["Review"], fn = function() SoA.Review:Toggle() end },
+			{ text = L["Archive"], fn = function() SoA.Archive:Toggle() end },
 			{ text = L["Flow"], fn = function() SoA:ToggleFlow() end },
 			{ text = L["Settings"], fn = function() SoA:ToggleConfig() end },
 		})
 	end)
 	more:SetPoint("RIGHT", close, "LEFT", -6, 0)
-	more.tip = L["Review (velocity and statistics), Flow view (a map of an epic), Settings."]
+	more.tip = L["Review (velocity and statistics), Archive (everything you finished), Flow view (a map of an epic), Settings."]
 	local ticket = S:Button(head, L["+ Ticket"], 70, 20, function() SoA.Tickets:OpenDialog() end)
 	ticket:SetPoint("RIGHT", more, "LEFT", -6, 0)
 	ticket.tip = L["A task that is not a quest, e.g. train spells or farm cloth."]

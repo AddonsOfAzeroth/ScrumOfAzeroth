@@ -320,6 +320,8 @@ SlashCmdList.SCRUMOFAZEROTH = function(msg)
 		SoA:ToggleConfig()
 	elseif msg == "flow" then
 		SoA:ToggleFlow()
+	elseif msg == "archive" then
+		SoA.Archive:Toggle()
 	elseif msg == "sprint" then
 		if SoA.Sprint then SoA.Sprint:NewSprint() end
 	elseif msg == "debug" then
@@ -328,6 +330,6 @@ SlashCmdList.SCRUMOFAZEROTH = function(msg)
 	elseif msg == "" or msg == "board" then
 		SoA:ToggleBoard()
 	else
-		SoA:Print(L["/soa board: quest board. /soa flow: flow view. /soa config: settings. /soa sprint: start a new sprint."])
+		SoA:Print(L["/soa board: quest board. /soa archive: everything you finished. /soa flow: flow view. /soa config: settings. /soa sprint: start a new sprint."])
 	end
 end
