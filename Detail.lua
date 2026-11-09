@@ -724,6 +724,34 @@ local function header(cv, it)
 	if it.shared and it.shared.note then cv:Text(it.shared.note, { color = S.colors.accent, size = 10 }) end
 end
 
+-- the time estimate split up: walking, fighting, searching, other steps, turn-in
+local SPLIT = {
+	{ "walk", "Walking", { 0.41, 0.80, 0.94 } },
+	{ "fight", "Fighting", { 0.95, 0.45, 0.35 } },
+	{ "search", "Finding mobs", { 0.95, 0.75, 0.30 } },
+	{ "task", "Other steps", { 0.62, 0.45, 0.95 } },
+	{ "turnin", "Turn-in", { 0.35, 0.85, 0.45 } },
+}
+local function estimateBreakdown(cv, it)
+	local L, S = SoA.L, SoA.Style
+	local e = it.est
+	if not (e and e.split) or it.kind == "done" then return end
+	local total = 0
+	for _, s in ipairs(SPLIT) do total = total + (e.split[s[1]] or 0) end
+	if total <= 0 then return end
+	cv:Header(L["Time estimate"] .. "  " .. SoA.Estimate:Format(e))
+	for _, s in ipairs(SPLIT) do
+		local secs = e.split[s[1]] or 0
+		if secs >= 1 then
+			cv:Bar(secs / total, s[3], L[s[2]] .. "  " .. S:Minutes(secs / 60), 0)
+		end
+	end
+	if e.parts and #e.parts > 0 then
+		cv:Text(table.concat(e.parts, "  ·  "), { size = 10, color = S.colors.muted })
+	end
+	cv:Text(e.learned and L["Learned from your own play."] or L["Partly a guess: it gets better as you play."], { size = 10, color = S.colors.muted })
+end
+
 local function objectives(cv, it)
 	local L, S, Est = SoA.L, SoA.Style, SoA.Estimate
 	if not (it.objectives and #it.objectives > 0) then return end
@@ -891,6 +919,7 @@ function D:Overview(cv, it)
 		cv:Text(info.completion, { color = PARCHMENT, plain = true, size = 12 })
 	end
 	objectives(cv, it)
+	estimateBreakdown(cv, it)
 	if it.kind == "quest" then rewards(cv, it, info) end
 	local e = it.epic or (it.epicKey and SoA.Epics:ByKey(it.epicKey))
 	epicSteps(cv, e)

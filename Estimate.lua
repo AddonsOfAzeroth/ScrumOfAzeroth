@@ -230,6 +230,8 @@ function Est:Quest(q, distance)
 	local L, S = SoA.L, SoA.Style
 	local secs, lo, hi = 0, 0, 0
 	local parts = {}
+	-- where the time goes, for the breakdown in the details (seconds)
+	local split = { walk = 0, fight = 0, search = 0, task = 0, turnin = 0 }
 	local allLearned = true
 	local function add(s, n)
 		local a, b = range(n)
@@ -244,15 +246,18 @@ function Est:Quest(q, distance)
 		local w = d * self.DETOUR / speed
 		local a, b = 0.8, 1.4
 		secs, lo, hi = secs + w, lo + w * a, hi + w * b
+		split.walk = split.walk + w
 		parts[#parts + 1] = L["Walk %s"]:format(S:Minutes(w / 60))
 	else
 		local w = self.UNKNOWN_WALK
 		secs, lo, hi = secs + w, lo + w * 0.4, hi + w * 2.5
+		split.walk = split.walk + w
 		parts[#parts + 1] = L["Walk ?"]
 	end
 
 	if q.ready then
 		secs, lo, hi = secs + self.TURNIN, lo + self.TURNIN, hi + self.TURNIN * 2
+		split.turnin = split.turnin + self.TURNIN
 	else
 		-- the quest's level against yours: mobs below you die faster
 		local myLevel = num(UnitLevel("player"), 0)
@@ -271,21 +276,25 @@ function Est:Quest(q, distance)
 				if o.kind == "monster" then
 					local st = self:SearchTime(q.id)
 					add(rem * (kt + st), kn)
+					split.fight, split.search = split.fight + rem * kt, split.search + rem * st
 					parts[#parts + 1] = L["%d kills x %ds + %ds search"]:format(rem, kt + 0.5, st + 0.5)
 				elseif o.kind == "item" then
 					local rate, enc = self:DropRate(q.id, o.index)
 					local kills = rem / rate
 					local st = self:SearchTime(q.id)
 					add(kills * (kt + st), math.min(kn, enc))
+					split.fight, split.search = split.fight + kills * kt, split.search + kills * st
 					parts[#parts + 1] = L["%d drops @ %d%% = %d kills (+%ds search each)"]:format(rem, rate * 100 + 0.5, math.ceil(kills), st + 0.5)
 				elseif o.kind == "progressbar" then
 					local pt, pn = self:PctTime()
 					local left = 100 - math.max(0, math.min(100, o.pct or 0))
 					add(left * pt, pn)
+					split.task = split.task + left * pt
 					parts[#parts + 1] = L["%d%% x %ds"]:format(left, pt + 0.5)
 				else
 					local ot, on = self:ObjectTime()
 					add(rem * ot, on)
+					split.task = split.task + rem * ot
 					parts[#parts + 1] = L["%d steps x %ds"]:format(rem, ot + 0.5)
 				end
 			end
@@ -293,11 +302,12 @@ function Est:Quest(q, distance)
 		-- walk on to the turn-in, then hand in
 		local w = self.TURNIN_WALK + self.TURNIN
 		secs, lo, hi = secs + w, lo + w * 0.5, hi + w * 2
+		split.turnin = split.turnin + w
 		parts[#parts + 1] = L["turn-in %s"]:format(S:Minutes(w / 60))
 	end
 	return {
 		minutes = secs / 60, low = lo / 60, high = hi / 60,
-		learned = allLearned, parts = parts,
+		learned = allLearned, parts = parts, split = split,
 	}
 end
 

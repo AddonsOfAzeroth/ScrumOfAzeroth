@@ -299,8 +299,19 @@ function M:Shared(m, ctx)
 						return
 					end
 					local e = it.est
+					-- the saving comes off the fighting and searching in the breakdown
+					local split
+					if e.split then
+						split = {}
+						for k, v in pairs(e.split) do split[k] = v end
+						local fs = (split.fight or 0) + (split.search or 0)
+						if fs > 0 then
+							local f = math.max(0, fs - save * 60) / fs
+							split.fight, split.search = (split.fight or 0) * f, (split.search or 0) * f
+						end
+					end
 					it.est = { minutes = math.max(0.5, e.minutes - save), low = math.max(0.3, e.low - save),
-						high = math.max(0.5, e.high - save), learned = e.learned, parts = e.parts }
+						high = math.max(0.5, e.high - save), learned = e.learned, parts = e.parts, split = split }
 					it.minutes = it.est.minutes
 					it.shared.note = L["Overlaps with %s: saves ~%s when done together"]:format(other.title, S:Minutes(saveA + saveB))
 				end
