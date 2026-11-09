@@ -23,6 +23,9 @@ Est.TURNIN = 10       -- s to talk to the quest giver
 Est.UNKNOWN_WALK = 150 -- s when no position is known
 Est.LEARNED_N = 5     -- samples before a rate counts as learned
 Est.SEARCH = 15       -- s to find the next mob, until learned or guessed from the crowd
+-- a mob some levels below or above you: how much shorter or longer the fight is,
+-- until your own fights (or another character of your class) say better
+Est.DIFF_FACTOR = { [-3] = 0.6, [-2] = 0.7, [-1] = 0.85, [0] = 1, [1] = 1.2, [2] = 1.45, [3] = 1.8 }
 local ALPHA = 0.2
 local NEAR_YD = 500
 
@@ -37,6 +40,7 @@ local function db()
 	if type(l.drops) ~= "table" then l.drops = {} end
 	if type(l.search) ~= "table" then l.search = {} end   -- [questID] = { avg, n }: s between fights
 	if type(l.crowd) ~= "table" then l.crowd = {} end     -- [questID] = { avg, n }: enemies in sight
+	if type(l.byDiff) ~= "table" then l.byDiff = {} end   -- [mob level - your level, -3..3] = { avg, n }
 	return l
 end
 
@@ -55,6 +59,32 @@ end
 function Est:KillTime()
 	local k = db().kill
 	return num(k.avg, self.KILL), num(k.n, 0)
+end
+
+-- every character of a class teaches the others (account wide): { [class] = { [diff] = { avg, n } } }
+local function classDiffs()
+	local d = SoA.db
+	if type(d) ~= "table" then return {} end
+	if type(d.killByClass) ~= "table" then d.killByClass = {} end
+	local class = select(2, UnitClass("player")) or "?"
+	if type(d.killByClass[class]) ~= "table" then d.killByClass[class] = {} end
+	return d.killByClass[class]
+end
+
+local function clampDiff(d) return math.max(-3, math.min(3, math.floor(d + 0.5))) end
+Est.ClampDiff = clampDiff
+
+-- seconds per kill against a mob `diff` levels above (+) or below (-) you:
+-- this character's own fights, else your class on this account, else your
+-- usual kill time scaled
+function Est:KillTimeAt(diff)
+	diff = clampDiff(num(diff, 0))
+	local own = db().byDiff[diff]
+	if type(own) == "table" and num(own.n, 0) >= 3 then return num(own.avg, self.KILL), num(own.n, 0) end
+	local cls = classDiffs()[diff]
+	if type(cls) == "table" and num(cls.n, 0) >= 3 then return num(cls.avg, self.KILL), math.min(num(cls.n, 0), self.LEARNED_N - 1) end
+	local kt, kn = self:KillTime()
+	return kt * (self.DIFF_FACTOR[diff] or 1), kn
 end
 
 -- Seconds to find the next mob for a quest: learned, else from the crowd seen
@@ -224,7 +254,10 @@ function Est:Quest(q, distance)
 	if q.ready then
 		secs, lo, hi = secs + self.TURNIN, lo + self.TURNIN, hi + self.TURNIN * 2
 	else
-		local kt, kn = self:KillTime()
+		-- the quest's level against yours: mobs below you die faster
+		local myLevel = num(UnitLevel("player"), 0)
+		local diff = (num(q.level, 0) > 0 and myLevel > 0) and (q.level - myLevel) or 0
+		local kt, kn = self:KillTimeAt(diff)
 		-- this quest's own fights (Activity.lua), once there are a few
 		local Act = SoA.Activity
 		if Act and Act:Enabled() then
@@ -282,6 +315,7 @@ end
 local prev = {}       -- "qid:idx" -> { have, pct, t, kind, quest, done, fresh }
 local fightStart
 local fightEnd = 0
+local fightDiff       -- mob level - your level for the fight going on (taken when it starts)
 local fightInc = {}   -- objective increments of the current fight (and 5 s after it)
 local SHARED_WINDOW = 5
 
@@ -399,7 +433,15 @@ local function onCombatStart()
 	end
 	fightStart = now
 	wipe(fightInc)
+	-- the mob you are fighting: its level against yours (skull = far above)
+	fightDiff = nil
+	if flag(try(UnitCanAttack, "player", "target")) then
+		local tl, pl = num((try(UnitLevel, "target"))), num((try(UnitLevel, "player")))
+		if tl and pl and pl > 0 then fightDiff = tl < 0 and 3 or clampDiff(tl - pl) end
+	end
 end
+
+Est.FightStarted = onCombatStart -- for tests
 
 -- every few seconds out of combat: how many enemies are in sight (nameplates)
 local function crowd()
@@ -446,9 +488,22 @@ function Est:NoteEncounter(questID)
 end
 
 -- Seconds per kill with the measured downtime (from Activity.lua).
+local function learnDiff(secs)
+	if not fightDiff then return end
+	local own = db().byDiff
+	own[fightDiff] = own[fightDiff] or { n = 0 }
+	ema(own[fightDiff], secs, 6, 200)
+	local cls = classDiffs()
+	cls[fightDiff] = cls[fightDiff] or { n = 0 }
+	ema(cls[fightDiff], secs, 6, 200)
+end
+
 function Est:LearnFight(secs)
 	secs = num(secs)
-	if secs then ema(db().kill, secs, 6, 200) end
+	if secs then
+		ema(db().kill, secs, 6, 200)
+		learnDiff(secs)
+	end
 end
 
 local function onCombatEnd()
@@ -460,7 +515,10 @@ local function onCombatEnd()
 	-- attempts go to the quests the fight was attributed to (Activity.lua)
 	if SoA.Activity and SoA.Activity:Enabled() then return end
 	local l = db()
-	if dur >= 2 and dur <= 180 then ema(l.kill, dur + Est.DOWNTIME, 6, 200) end
+	if dur >= 2 and dur <= 180 then
+		ema(l.kill, dur + Est.DOWNTIME, 6, 200)
+		learnDiff(dur + Est.DOWNTIME)
+	end
 	Est:NoteNearEncounters()
 end
 
