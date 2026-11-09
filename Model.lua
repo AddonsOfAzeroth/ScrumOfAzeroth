@@ -75,6 +75,9 @@ function M:Build()
 		it.est = Est:Quest(q, pe and pe.distance)
 		it.minutes = it.est.minutes
 		if it.xp and it.minutes > 0 then it.xpm = it.xp / it.minutes end
+		-- the leveling advice from Roads of Azeroth (skip?, follow-up quests)
+		it.skip = pe and pe.skip or nil
+		it.followUps = pe and pe.followUps or nil
 		local e = E:Get(q.id)
 		if e then
 			it.epic, it.epicKey, it.epicName, it.color, it.campaign = e, e.key, e.name, e.color, e.campaign

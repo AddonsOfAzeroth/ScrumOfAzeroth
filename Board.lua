@@ -242,6 +242,12 @@ local function showMenu(anchor, entries, withNote)
 end
 
 B.ShowMenu = showMenu
+-- why Roads of Azeroth suggests skipping a quest
+B.SKIP_REASON = {
+	grey = "Gives little XP at your level.", elite = "Group or elite quest: hard solo.",
+	far = "Far away or on another continent.", red = "Much higher level: come back later.",
+	slow = "Little XP for the time it takes, compared to your other quests.",
+}
 B.HideMenu = hideMenu
 B.PrioIcon = prioIcon
 B.SetPrio = setPrio
@@ -407,6 +413,12 @@ local function cardTooltip(self)
 			GameTooltip:AddDoubleLine(L["Estimate"], SoA.Estimate:Format(it.est) .. (it.est.learned and (" · " .. L["learned"]) or (" · " .. L["estimate"])),
 				0.6, 0.65, 0.71, 1, 1, 1)
 			GameTooltip:AddLine(table.concat(it.est.parts or {}, " · "), 0.6, 0.65, 0.71, true)
+		end
+		if it.skip and B.SKIP_REASON[it.skip] then
+			GameTooltip:AddLine(L["Advice"] .. ": " .. L[B.SKIP_REASON[it.skip]], 1, 0.82, 0, true)
+		end
+		if (it.followUps or 0) > 0 then
+			GameTooltip:AddLine(L["%d more quest(s) follow in this chain."]:format(it.followUps), 0.35, 0.85, 0.45, true)
 		end
 		if it.xp then GameTooltip:AddDoubleLine(L["XP"], S:Digits(it.xp) .. (it.xpm and ("  (" .. L["XP/min %d"]:format(it.xpm + 0.5) .. ")") or ""), 0.6, 0.65, 0.71, 1, 0.82, 0) end
 		if it.blockReasons and #it.blockReasons > 0 then
@@ -648,6 +660,8 @@ local function fillCard(c, it, width, opts)
 	local meta = {}
 	if it.est and it.kind ~= "done" then meta[#meta + 1] = SoA.Estimate:Format(it.est) end
 	if it.blocked and it.kind ~= "upcoming" then meta[#meta + 1] = "|cffff4d4d" .. L["Blocked"] .. "|r" end
+	if it.skip and it.kind ~= "done" then meta[#meta + 1] = "|cff999999" .. (it.skip == "red" and L["Later"] or L["Skip?"]) .. "|r" end
+	if it.xpm and it.kind ~= "done" and not it.skip then meta[#meta + 1] = "|cffffd100" .. math.floor(it.xpm * 60 + 0.5) .. " " .. L["XP/h"] .. "|r" end
 	if it.upgrade then meta[#meta + 1] = "|cff4ce64c" .. L["Upgrade"] .. "|r" end
 	if it.dungeonName and it.kind == "quest" then meta[#meta + 1] = "|cffdb9e42" .. it.dungeonName .. "|r" end
 	if it.kind == "upcoming" then meta[#meta + 1] = L["after: %s"]:format(it.after or "?") end

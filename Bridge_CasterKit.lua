@@ -72,7 +72,8 @@ function Bridge.GetRoute()
 	for _, e in ipairs(list) do
 		local id = type(e) == "table" and num(e.questID)
 		if id then
-			out[id] = { xp = num(e.xp), distance = num(e.distance), minutes = num(e.minutes), rank = num(e.rank), zoneMatch = e.zoneMatch and true or false }
+			out[id] = { xp = num(e.xp), distance = num(e.distance), minutes = num(e.minutes), rank = num(e.rank), zoneMatch = e.zoneMatch and true or false,
+				skip = type(e.skip) == "string" and e.skip or nil, followUps = num(e.followUps) }
 		end
 	end
 	return out

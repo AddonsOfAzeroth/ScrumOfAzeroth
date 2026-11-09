@@ -286,6 +286,9 @@ function SP:Plan(m)
 					if pass == 1 then skipped[#skipped + 1] = { item = it, reason = SoA.L["On hold"] } end
 				elseif it.blocked then
 					if pass == 1 then skipped[#skipped + 1] = { item = it, reason = it.blockReasons[1] } end
+				elseif it.skip and it.kind == "quest" then
+					-- the leveling advice says skip (or later): not in the plan
+					if pass == 1 then skipped[#skipped + 1] = { item = it, reason = SoA.L["Advice: skip"] } end
 				else
 					local c = cost(it)
 					if budget > 0 and c <= budget and (pass == 1 or it.shared) then
