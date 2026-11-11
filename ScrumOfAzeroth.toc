@@ -10,6 +10,7 @@
 ## SavedVariablesPerCharacter: ScrumOfAzerothCharDB
 ## OptionalDeps: CastersOfAzeroth, CasterKit, RoadsOfAzeroth
 
+Hub.lua
 libs\LibStub\LibStub.lua
 libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
 
@@ -38,3 +39,4 @@ EpicFlow.lua
 Config.lua
 Bridge_CasterKit.lua
 Tracker.lua
+HubEntry.lua
