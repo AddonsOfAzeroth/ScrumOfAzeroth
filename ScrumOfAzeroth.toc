@@ -1,4 +1,5 @@
 ## Interface: 16001
+## Category: Addons of Azeroth
 ## Title: Scrum of Azeroth
 ## Notes: Agile questing: questlines as epics, a Kanban/Scrum quest board, sprints with burndown, estimates and priorities.
 ## Notes-nlNL: Agile questen: questlijnen als epics, een Kanban/Scrum-questbord, sprints met burndown, schattingen en prioriteiten.
